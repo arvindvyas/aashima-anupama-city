@@ -1,5 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_LOGIN, SOCIETY_ID } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_LOGIN, SOCIETY_ID } from './config.js?v=6';
 
 /* ================= helpers ================= */
 const $ = s => document.querySelector(s);
