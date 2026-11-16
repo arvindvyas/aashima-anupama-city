@@ -457,17 +457,17 @@ VIEWS.members = {
   draw() {
     const { m, v } = D.members, qq = ui.q.trim().toLowerCase();
     const list = m.filter(x => !qq || (x.name + ' ' + (x.villas?.number || '') + ' ' + x.email).toLowerCase().includes(qq)).sort((a, b) => byNum(a.villas?.number || 'zzz', b.villas?.number || 'zzz'));
-    return `<div class="head"><div><h1>Members</h1><p>${m.length} people · they sign in with the email you add here</p></div>
+    return `<div class="head"><div><h1>Members</h1><p>${m.length} ${m.length === 1 ? 'person' : 'people'} · they sign in with the email you add here</p></div>
       <button class="btn" data-act="invite">Share app link</button></div>
-    <div class="card">${v.length ? `<form class="addrow" data-form="member">
-        <select name="villa_id" aria-label="Villa" required>${v.map(x => `<option value="${x.id}">${esc(x.number)}</option>`).join('')}</select>
+    <div class="card"><form class="addrow" data-form="member">
+        <input name="villa" aria-label="Villa number" placeholder="Villa no. e.g. B-12" list="villaList" required autocapitalize="characters">
+        <datalist id="villaList">${v.map(x => `<option value="${esc(x.number)}">`).join('')}</datalist>
         <input name="name" aria-label="Name" placeholder="Name" required>
         <input name="email" type="email" aria-label="Email" placeholder="Email" required>
         <button class="btn primary">Add</button></form>
       <details><summary class="sub">Adding many villas? Paste a list</summary><form class="stack" data-form="members-paste" style="margin-top:10px">
         <div class="field"><label for="mList">One per line: villa, name, email</label><textarea id="mList" name="list" placeholder="B-12, Neha Sharma, neha@gmail.com"></textarea></div>
-        <div><button class="btn">Add all</button></div></form></details>`
-      : `<p>First add your villa numbers in <button class="btn small" data-act="go" data-v="settings">Settings</button>.</p>`}</div>
+        <div><button class="btn">Add all</button></div></form></details></div>
     ${m.length > 8 ? `<input class="search" type="search" id="memSearch" data-act="memsearch" placeholder="Search name, villa or email" value="${esc(ui.q)}" aria-label="Search members">` : ''}
     <div class="card"><div class="list">${list.map(x => `<div class="item" style="align-items:center">
       <b class="num" style="width:64px;flex:none">${esc(x.villas?.number || '—')}</b>
@@ -555,6 +555,16 @@ function textModal(title, sub, txt) {
 async function busy(btn, fn) {
   if (btn) btn.disabled = true;
   try { await fn(); } catch (e) { toast(e.message, true); } finally { if (btn && btn.isConnected) btn.disabled = false; }
+}
+async function villaIds(numbers) {
+  const norm = n => n.trim().toUpperCase().replace(/\s+/g, '');
+  const map = Object.fromEntries((D.members?.v || []).map(x => [norm(x.number), x.id]));
+  const missing = [...new Set(numbers.map(norm).filter(n => n && !map[n]))];
+  if (missing.length) {
+    const rows = await q(sb.from('villas').upsert(missing.map(number => ({ society_id: sid(), number })), { onConflict: 'society_id,number' }).select('id,number'));
+    rows.forEach(r => { map[norm(r.number)] = r.id; });
+  }
+  return n => map[norm(n)];
 }
 const findDue = id => D.dues?.rows?.find(x => x.id == id) || D.home?.dues?.find(x => x.id == id);
 
@@ -672,16 +682,18 @@ document.addEventListener('submit', e => {
         toast(mine ? 'Society created. Now add your villas.' : `Society created. ${d.email.trim()} can now sign in as its admin.`);
         return boot();
       }
-      case 'member': await q(sb.from('members').insert({ society_id: sid(), villa_id: d.villa_id, name: d.name.trim(), email: d.email.trim().toLowerCase(), status: 'invited' })).catch(e => { throw /duplicate|unique/i.test(e.message) ? new Error('This email is already added.') : e; }); toast(`${d.name.trim()} added. They can sign in now.`); return refresh();
+      case 'member': {
+        const idOf = await villaIds([d.villa]);
+        await q(sb.from('members').insert({ society_id: sid(), villa_id: idOf(d.villa), name: d.name.trim(), email: d.email.trim().toLowerCase(), status: 'invited' }))
+          .catch(e => { throw /duplicate|unique/i.test(e.message) ? new Error('This email is already added.') : e; });
+        toast(`${d.name.trim()} added to ${d.villa.trim().toUpperCase()}. They can sign in now.`); return refresh();
+      }
       case 'members-paste': {
-        const byNo = Object.fromEntries(D.members.v.map(x => [x.number.toUpperCase(), x.id])), have = new Set(D.members.m.map(x => x.email));
-        const rows = [], bad = [];
-        d.list.split('\n').map(l => l.split(/[,\t]/).map(x => x.trim())).filter(p => p[0]).forEach(([no, name, email = ''], i) => {
-          email = email.toLowerCase(); const vid = byNo[(no || '').toUpperCase()];
-          if (!vid || !name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad.push(no || 'line ' + (i + 1)); else if (!have.has(email)) { have.add(email); rows.push({ society_id: sid(), villa_id: vid, name, email, status: 'invited' }); }
-        });
-        if (rows.length) await q(sb.from('members').insert(rows));
-        toast(`${rows.length} added${bad.length ? ` · check these lines: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}` : ''}`, !!bad.length); return refresh();
+        const have = new Set(D.members.m.map(x => x.email)), lines = d.list.split('\n').map(l => l.split(/[,\t]/).map(x => x.trim())).filter(p => p[0]);
+        const ok = [], bad = [];
+        lines.forEach(([no, name, email = ''], i) => { email = email.toLowerCase(); if (!no || !name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad.push(no || 'line ' + (i + 1)); else if (!have.has(email)) { have.add(email); ok.push({ no, name, email }); } });
+        if (ok.length) { const idOf = await villaIds(ok.map(r => r.no)); await q(sb.from('members').insert(ok.map(r => ({ society_id: sid(), villa_id: idOf(r.no), name: r.name, email: r.email, status: 'invited' })))); }
+        toast(`${ok.length} added${bad.length ? ` · check these lines: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}` : ''}`, !!bad.length); return refresh();
       }
       case 'utr': await q(sb.rpc('submit_payment', { p_due_id: +f.dataset.v, p_utr: d.utr })); closeModal(); toast('Sent to the treasurer for checking'); return refresh();
       case 'offline': await q(sb.from('dues').update({ status: 'paid', mode: d.mode, paid_on: d.paid_on, utr: d.utr.trim(), confirmed_by: uid() }).eq('id', f.dataset.v)); closeModal(); toast('Marked paid'); return refresh();
