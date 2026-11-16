@@ -51,7 +51,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase config');
 }
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-let session = null, mems = [], cur = null, D = {}, owner = false;
+let session = null, mems = [], cur = null, D = {}, owner = false, pubName = '';
 const ui = { tab: 'home', month: thisMonth(), dueFilter: 'all', q: '', tFilter: 'active', authStep: 'email', email: '' };
 const uid = () => session?.user?.id;
 const isAdmin = () => cur?.role === 'admin';
@@ -83,7 +83,7 @@ sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && !session) { ses
 function fatal(e) { solo(`<div class="auth"><div class="card"><h2>Could not load</h2><p class="err">${esc(e.message)}</p><div class="row"><button class="btn primary" data-act="reload">Try again</button><button class="btn ghost" data-act="signout">Sign out</button></div></div></div>`); }
 function solo(html, who = '') {
   $('#shell').classList.add('solo'); $('#nav').innerHTML = ''; $('#main').innerHTML = html;
-  $('#socName').textContent = 'Society Hub'; $('#whoami').textContent = who;
+  $('#socName').textContent = pubName || 'Society Hub'; $('#whoami').textContent = who;
   $('#topActions').innerHTML = session ? `<button class="btn small ghost" data-act="signout">Sign out</button>` : '';
 }
 
@@ -105,7 +105,7 @@ async function renderLanding() {
   $('#topActions').innerHTML = `<button class="btn small" data-act="show-login">Resident login</button>`;
   let info = null;
   try { if (SOCIETY_ID) info = await q(sb.rpc('public_society', { p_id: SOCIETY_ID })); } catch (e) { }
-  const name = info?.name || 'Society Hub', am = info?.amenities || [], notes = info?.notices || [];
+  const name = info?.name || 'Society Hub'; pubName = info?.name || ''; const am = info?.amenities || [], notes = info?.notices || [];
   $('#socName').textContent = name; $('#whoami').textContent = info?.address || '';
   document.title = name;
   $('#main').innerHTML = `<div class="landing">
@@ -113,13 +113,13 @@ async function renderLanding() {
       <div class="hero-text">
         <span class="eyebrow">Gated villa community</span>
         <h1>${esc(name)}</h1>
-        <p class="lead">${esc(info?.about || `A friendly community of ${info?.villas || 'many'} villas, run by its residents' committee.`)}</p>
+        <p class="lead">${esc(info?.about || `A friendly gated community${info?.villas > 1 ? ` of ${info.villas} villas` : ''}, run by its residents' committee.`)}</p>
         ${info?.address ? `<p class="sub">${esc(info.address)}</p>` : ''}
       </div>
       <div class="hero-art">${VILLAS_ART}</div>
     </section>
     <div class="facts">
-      ${info?.villas ? `<div><b class="num">${info.villas}</b><span>Villas</span></div>` : ''}
+      ${info?.villas ? `<div><b class="num">${info.villas}</b><span>${info.villas === 1 ? 'Villa' : 'Villas'}</span></div>` : ''}
       ${am.length ? `<div><b class="num">${am.length}</b><span>Shared amenities</span></div>` : ''}
       <div><b>24×7</b><span>Gated security</span></div>
     </div>
