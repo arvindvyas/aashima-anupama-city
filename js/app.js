@@ -91,6 +91,7 @@ function renderLogin(msg = '') {
   const email = ui.authStep === 'email';
   solo(`<div class="auth"><div class="card">
     <div><h1>Sign in</h1><p class="sub">Your society's maintenance, notices, complaints and bookings in one place. Free.</p></div>
+    ${email ? `<p class="note" style="white-space:normal">Use the email address your society committee registered for you. New here? Send your villa number and email to your committee first.</p>` : ''}
     ${email ? `<form class="stack" data-form="email">
         <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="email" placeholder="you@gmail.com" value="${esc(ui.email)}"></div>
         <button class="btn primary">Email me a sign-in link</button></form>`
