@@ -7,4 +7,4 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 export const GOOGLE_LOGIN = false;
 
 // The society shown on the public home page (Supabase → societies → id).
-export const SOCIETY_ID = '';
+export const SOCIETY_ID = '0e80ef12-d3db-4e09-8785-bf408738639a';
