@@ -38,11 +38,20 @@ A free app for villa and apartment societies. Residents pay maintenance by UPI, 
 2. Repo **Settings → Pages → Deploy from a branch → main / (root)**.
 3. After a minute the app is live at `https://<your-github-name>.github.io/society-hub/`.
 
-### 3. First use (committee)
-1. Open the app, sign in with your email, and choose **Set up a new society**.
-2. In **Settings**: set the UPI ID, the maintenance amount and the due day, then add villas (for example `V-` from 1 to 400).
-3. Go to **Members → Share invite code** and post the message in the society WhatsApp group.
-4. Approve residents as they join. Give a few people the **Admin** role and a title (Treasurer, Secretary and so on).
+### 3. Who can do what at sign-up
+- **App owner** (emails in the `platform_admins` table) creates societies. Add yourself once in the SQL Editor:
+  `insert into platform_admins values ('you@gmail.com');`
+- **Society admins** add villas and then add each resident by **email** (one at a time, or paste from Excel).
+- **Residents** just open the link and sign in with that email. They see their society straight away. There are no invite codes or join requests.
+- **Strangers** cannot sign in. The Auth hook below refuses any email that no society has added, so nobody can spam login emails.
+
+Turn on the hook once: Supabase → **Authentication → Auth Hooks → Add hook → Before User Created → Postgres → `public.hook_before_user_created`**.
+
+### First use (committee)
+1. The app owner signs in and creates the society, giving the admin's email.
+2. The admin signs in, opens **Settings**, sets the UPI ID, maintenance amount and due day, and adds villas (for example `V-` from 1 to 400).
+3. In **Members**, the admin adds residents by email and gives a few people the **Admin** role and a title (Treasurer, Secretary and so on).
+4. Tap **Share app link** and post it in the society WhatsApp group.
 5. Each month go to **Maintenance → Raise bills**. Residents pay by UPI and enter the UTR, and the treasurer confirms each payment.
 
 ### 4. Backups (do both)
@@ -72,4 +81,5 @@ Then open http://localhost:8000
 | Bookings | book for own villa, see all | cancel any |
 | Accounts and expenses | read | add and delete |
 | Phone numbers | committee only | all |
-| Members, villas, settings | ❌ | ✅ |
+| Add residents, villas, settings | ❌ | ✅ |
+| Create a new society | ❌ | ❌ (app owner only) |

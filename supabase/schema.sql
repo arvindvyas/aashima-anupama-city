@@ -40,16 +40,29 @@ create table if not exists public.villas (
 create table if not exists public.members (
   id         uuid primary key default gen_random_uuid(),
   society_id uuid not null references public.societies on delete cascade,
-  user_id    uuid not null references auth.users on delete cascade,
+  user_id    uuid references auth.users on delete cascade,      -- empty until the person first signs in
   villa_id   uuid references public.villas on delete set null,
   name       text not null check (length(trim(name)) between 1 and 80),
   phone      text not null default '',
   email      text not null default '',
   role       text not null default 'resident' check (role in ('resident','admin')),
   title      text not null default '',            -- President, Treasurer, Secretary ...
-  status     text not null default 'pending' check (status in ('pending','active','rejected')),
+  status     text not null default 'invited' check (status in ('invited','active')),
   created_at timestamptz not null default now(),
   unique (society_id, user_id)
+);
+
+-- Upgrade older databases (safe to run again)
+alter table public.members alter column user_id drop not null;
+alter table public.members alter column status set default 'invited';
+alter table public.members drop constraint if exists members_status_check;
+delete from public.members where status not in ('invited','active');   -- old unapproved join requests
+alter table public.members add constraint members_status_check check (status in ('invited','active'));
+create unique index if not exists members_society_email on public.members (society_id, email) where email <> '';
+
+-- People allowed to create new societies (the app owner). Add rows from the SQL editor.
+create table if not exists public.platform_admins (
+  email text primary key check (email = lower(trim(email)))
 );
 
 create table if not exists public.dues (
@@ -142,6 +155,11 @@ language sql stable security definer set search_path = public as $$
   limit 1;
 $$;
 
+create or replace function public.is_platform_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from platform_admins where email = lower(coalesce(auth.jwt() ->> 'email', '')));
+$$;
+
 create or replace function public.is_linked(sid uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from members where society_id = sid and user_id = auth.uid());
@@ -174,8 +192,13 @@ create or replace function public.guard_members() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'UPDATE' then
-    if new.society_id <> old.society_id or new.user_id <> old.user_id then
-      raise exception 'Society and user of a member cannot be changed.';
+    if new.society_id <> old.society_id then
+      raise exception 'The society of a member cannot be changed.';
+    end if;
+    if new.user_id is distinct from old.user_id and not (
+         old.user_id is null and new.user_id = auth.uid()
+         and new.email = lower(coalesce(auth.jwt() ->> 'email', ''))) then
+      raise exception 'The login of a member cannot be changed. Remove the member and add them again.';
     end if;
     if old.role = 'admin' and old.status = 'active' and (new.role <> 'admin' or new.status <> 'active')
        and not exists (select 1 from members where society_id = old.society_id and role = 'admin'
@@ -192,6 +215,13 @@ begin
   end if;
   return old;
 end $$;
+
+-- Store emails in lower case so sign-in matching is exact.
+create or replace function public.normalize_member() returns trigger
+language plpgsql as $$ begin new.email = lower(trim(coalesce(new.email,''))); new.name = trim(new.name); return new; end $$;
+drop trigger if exists members_normalize on public.members;
+create trigger members_normalize before insert or update on public.members
+  for each row execute function public.normalize_member();
 
 drop trigger if exists members_guard on public.members;
 create trigger members_guard before update or delete on public.members
@@ -231,6 +261,7 @@ alter table public.notices         enable row level security;
 alter table public.tickets         enable row level security;
 alter table public.bookings        enable row level security;
 alter table public.expenses        enable row level security;
+alter table public.platform_admins enable row level security;   -- no policies: only reachable through functions
 
 -- societies
 drop policy if exists soc_read   on public.societies;
@@ -252,9 +283,12 @@ create policy villa_write on public.villas for all    to authenticated using (pu
 
 -- members: you see yourself; admins see and manage everyone
 drop policy if exists mem_read   on public.members;
+drop policy if exists mem_insert on public.members;
 drop policy if exists mem_update on public.members;
 drop policy if exists mem_delete on public.members;
 create policy mem_read   on public.members for select to authenticated using (user_id = auth.uid() or public.is_admin(society_id));
+create policy mem_insert on public.members for insert to authenticated
+  with check (public.is_admin(society_id) and user_id is null and status = 'invited' and email <> '');
 create policy mem_update on public.members for update to authenticated using (public.is_admin(society_id)) with check (public.is_admin(society_id));
 create policy mem_delete on public.members for delete to authenticated using (public.is_admin(society_id));
 
@@ -305,41 +339,54 @@ create policy exp_write on public.expenses for all    to authenticated using (pu
 
 -- ---------- actions (RPC functions the app calls) --------------------
 
--- Create a new society. The person who creates it becomes its first admin.
-create or replace function public.create_society(p_name text, p_admin_name text, p_phone text default '', p_villa_number text default '')
+drop function if exists public.create_society(text,text,text,text);
+drop function if exists public.join_society(text,text,text,text);
+
+-- Create a new society (app owner only) with its first admin.
+-- If the admin email is the caller's own, they become admin straight away;
+-- otherwise the admin is invited and gets access when they first sign in.
+create or replace function public.create_society(p_name text, p_admin_name text, p_admin_email text,
+                                                 p_phone text default '', p_villa_number text default '')
 returns uuid language plpgsql security definer set search_path = public as $$
-declare sid uuid; vid uuid;
+declare sid uuid; vid uuid; em text := lower(trim(coalesce(p_admin_email,''))); me text := lower(coalesce(auth.jwt() ->> 'email',''));
 begin
-  if auth.uid() is null then raise exception 'Please sign in first.'; end if;
+  if not public.is_platform_admin() then raise exception 'Only the app owner can create a society.'; end if;
+  if em !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Please enter a valid email for the society admin.'; end if;
   insert into societies (name, created_by) values (trim(p_name), auth.uid()) returning id into sid;
   insert into society_secrets (society_id) values (sid);
   if coalesce(trim(p_villa_number),'') <> '' then
     insert into villas (society_id, number, owner_name) values (sid, upper(trim(p_villa_number)), trim(p_admin_name)) returning id into vid;
   end if;
   insert into members (society_id, user_id, villa_id, name, phone, email, role, status, title)
-  values (sid, auth.uid(), vid, trim(p_admin_name), trim(coalesce(p_phone,'')),
-          coalesce(auth.jwt() ->> 'email',''), 'admin', 'active', 'Admin');
+  values (sid, case when em = me then auth.uid() end, vid, trim(p_admin_name), trim(coalesce(p_phone,'')), em,
+          'admin', case when em = me then 'active' else 'invited' end, 'Admin');
   return sid;
 end $$;
 
--- Ask to join a society with its invite code. An admin must approve.
-create or replace function public.join_society(p_code text, p_villa_number text, p_name text, p_phone text default '')
-returns uuid language plpgsql security definer set search_path = public as $$
-declare sid uuid; vid uuid;
+-- Called by the app after every sign-in: links the person to every society that added their email.
+create or replace function public.claim_invites()
+returns integer language plpgsql security definer set search_path = public as $$
+declare n integer; em text := lower(coalesce(auth.jwt() ->> 'email',''));
 begin
-  if auth.uid() is null then raise exception 'Please sign in first.'; end if;
-  select id into sid from societies where invite_code = upper(trim(p_code));
-  if sid is null then raise exception 'Invite code not found. Please check it with your committee.'; end if;
-  select id into vid from villas where society_id = sid and upper(number) = upper(trim(p_villa_number));
-  if vid is null then raise exception 'Villa "%" is not in this society list. Please check the number with your committee.', trim(p_villa_number); end if;
-  if exists (select 1 from members where society_id = sid and user_id = auth.uid() and status <> 'rejected') then
-    raise exception 'You have already asked to join this society.';
+  if auth.uid() is null or em = '' then return 0; end if;
+  update members m set user_id = auth.uid(), status = 'active'
+  where m.user_id is null and m.email = em and m.status = 'invited'
+    and not exists (select 1 from members x where x.society_id = m.society_id and x.user_id = auth.uid());
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- Supabase Auth hook "Before User Created": only emails a committee has added (or the app owner)
+-- can create a login. Strangers get an error and NO email is sent, so nobody can burn the email quota.
+create or replace function public.hook_before_user_created(event jsonb)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare em text := lower(coalesce(event -> 'user' ->> 'email', ''));
+begin
+  if em <> '' and (exists (select 1 from members where email = em) or exists (select 1 from platform_admins where email = em)) then
+    return '{}'::jsonb;
   end if;
-  insert into members (society_id, user_id, villa_id, name, phone, email, role, status)
-  values (sid, auth.uid(), vid, trim(p_name), trim(coalesce(p_phone,'')), coalesce(auth.jwt() ->> 'email',''), 'resident', 'pending')
-  on conflict (society_id, user_id) do update
-    set villa_id = excluded.villa_id, name = excluded.name, phone = excluded.phone, status = 'pending';
-  return sid;
+  return jsonb_build_object('error', jsonb_build_object('http_code', 403,
+    'message', 'This email is not registered with any society. Please ask your committee to add you.'));
 end $$;
 
 -- Resident says "I have paid by UPI" with the UTR number. Treasurer then confirms.
@@ -450,13 +497,22 @@ end $$;
 -- Who may call what
 revoke all on function public.export_society(text) from public;
 grant execute on function public.export_society(text) to anon, authenticated;
-revoke all on function public.create_society(text,text,text,text), public.join_society(text,text,text,text),
+revoke all on function public.create_society(text,text,text,text,text), public.claim_invites(), public.is_platform_admin(),
                        public.submit_payment(bigint,text), public.generate_dues(uuid,date,integer),
                        public.society_summary(uuid), public.directory(uuid) from public, anon;
-grant execute on function public.create_society(text,text,text,text), public.join_society(text,text,text,text),
+grant execute on function public.create_society(text,text,text,text,text), public.claim_invites(), public.is_platform_admin(),
                           public.submit_payment(bigint,text), public.generate_dues(uuid,date,integer),
                           public.society_summary(uuid), public.directory(uuid) to authenticated;
 
 -- Table access for signed-in users (RLS above decides which rows)
 grant select, insert, update, delete on all tables in schema public to authenticated;
 revoke all on all tables in schema public from anon;
+
+-- The auth hook may only be called by Supabase Auth.
+revoke all on function public.hook_before_user_created(jsonb) from public, anon, authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+    grant execute on function public.hook_before_user_created(jsonb) to supabase_auth_admin;
+    grant usage on schema public to supabase_auth_admin;
+  end if;
+end $$;
