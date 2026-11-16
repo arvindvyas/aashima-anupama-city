@@ -5,3 +5,6 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Set to true after you switch on Google login in Supabase (Authentication → Providers → Google).
 export const GOOGLE_LOGIN = false;
+
+// The society shown on the public home page (Supabase → societies → id).
+export const SOCIETY_ID = '';

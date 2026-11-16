@@ -60,6 +60,11 @@ delete from public.members where status not in ('invited','active');   -- old un
 alter table public.members add constraint members_status_check check (status in ('invited','active'));
 create unique index if not exists members_society_email on public.members (society_id, email) where email <> '';
 
+-- Simple mode: extra screens are off until an admin switches them on. Public home page fields.
+alter table public.societies add column if not exists features text[] not null default '{}';   -- 'book','acc','dir'
+alter table public.societies add column if not exists about text not null default '';
+alter table public.notices   add column if not exists is_public boolean not null default false;
+
 -- People allowed to create new societies (the app owner). Add rows from the SQL editor.
 create table if not exists public.platform_admins (
   email text primary key check (email = lower(trim(email)))
@@ -493,6 +498,19 @@ begin
                   from bookings b join villas v on v.id = b.villa_id where b.society_id = sid) x), '[]')
   );
 end $$;
+
+-- Public home page: only what the committee chose to show. No names, phones or money.
+create or replace function public.public_society(p_id uuid)
+returns json language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'name', s.name, 'address', s.address, 'about', s.about, 'amenities', s.amenities,
+    'villas', (select count(*) from villas v where v.society_id = s.id),
+    'notices', coalesce((select json_agg(n order by n.created_at desc) from (
+        select title, body, tag, created_at from notices
+        where society_id = s.id and is_public order by created_at desc limit 5) n), '[]'::json))
+  from societies s where s.id = p_id;
+$$;
+grant execute on function public.public_society(uuid) to anon, authenticated;
 
 -- Who may call what
 revoke all on function public.export_society(text) from public;

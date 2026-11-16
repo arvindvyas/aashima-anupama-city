@@ -160,3 +160,25 @@ form.stack{display:flex;flex-direction:column;gap:12px}
 .secret{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;overflow-wrap:anywhere;background:var(--surface-2);padding:8px 10px;border-radius:8px}
 .btn[disabled]{opacity:.55;cursor:progress}
 details summary{cursor:pointer;font-weight:600}
+
+/* ---- public home page ---- */
+.landing{display:flex;flex-direction:column;gap:22px}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:center;padding-block:18px 4px}
+.hero h1{font-size:clamp(2.1rem,5vw,3.4rem);line-height:1.02;margin:8px 0 12px}
+.hero .lead{font-size:1.08rem;color:var(--ink);max-width:46ch;opacity:.85}
+.eyebrow{font-size:.74rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);background:var(--green-soft);padding:5px 10px;border-radius:999px}
+.hero-art svg{width:100%;height:auto;max-width:520px;display:block;margin-left:auto}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.facts div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.facts b{font-family:var(--f-display);font-size:1.6rem}
+.facts span{color:var(--muted);font-size:.85rem}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pills span{background:var(--green-soft);color:var(--green);font-weight:600;padding:7px 14px;border-radius:999px;font-size:.9rem}
+.resident-cta{flex-direction:row;align-items:center;flex-wrap:wrap;background:var(--surface-2)}
+.resident-cta > div{flex:1;min-width:220px}
+.auth{display:flex;flex-direction:column;gap:10px}
+.addrow{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,1.3fr) auto;gap:8px}
+.addrow input,.addrow select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0}
+fieldset.features{border:1px solid var(--line);border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;margin:0}
+fieldset.features legend{font-size:.8rem;font-weight:600;color:var(--muted);padding:0 6px}
+@media (max-width:760px){.hero{grid-template-columns:1fr}.hero-art{order:-1}.hero-art svg{max-width:360px;margin:0 auto}.addrow{grid-template-columns:1fr 1fr}.addrow button{grid-column:1/-1}}

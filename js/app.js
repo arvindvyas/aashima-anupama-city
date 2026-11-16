@@ -1,5 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_LOGIN } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_LOGIN, SOCIETY_ID } from './config.js';
 
 /* ================= helpers ================= */
 const $ = s => document.querySelector(s);
@@ -64,7 +64,7 @@ async function q(p) { const { data, error, count } = await p; if (error) throw n
 async function boot() {
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (!session) return renderLogin();
+  if (!session) return location.hash === '#login' ? renderLogin() : renderLanding();
   try {
     await q(sb.rpc('claim_invites'));           // links this login to every society that added this email
     [mems, owner] = await Promise.all([
@@ -77,7 +77,8 @@ async function boot() {
   renderApp();
 }
 // Supabase advises not to await its own calls inside this callback, so defer with setTimeout.
-sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && !session) { session = s; setTimeout(boot, 0); } if (ev === 'SIGNED_OUT') { session = null; mems = []; cur = null; setTimeout(renderLogin, 0); } });
+window.addEventListener('hashchange', () => { if (!session) location.hash === '#login' ? renderLogin() : renderLanding(); });
+sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_IN' && !session) { session = s; setTimeout(boot, 0); } if (ev === 'SIGNED_OUT') { session = null; mems = []; cur = null; history.replaceState(null, '', location.pathname); setTimeout(renderLanding, 0); } });
 
 function fatal(e) { solo(`<div class="auth"><div class="card"><h2>Could not load</h2><p class="err">${esc(e.message)}</p><div class="row"><button class="btn primary" data-act="reload">Try again</button><button class="btn ghost" data-act="signout">Sign out</button></div></div></div>`); }
 function solo(html, who = '') {
@@ -86,11 +87,58 @@ function solo(html, who = '') {
   $('#topActions').innerHTML = session ? `<button class="btn small ghost" data-act="signout">Sign out</button>` : '';
 }
 
+/* ================= public home page ================= */
+const VILLAS_ART = `<svg viewBox="0 0 520 300" role="img" aria-label="Illustration of villas among trees">
+  <rect x="0" y="262" width="520" height="38" rx="6" fill="var(--green-soft)"/>
+  <g fill="var(--surface)" stroke="var(--green)" stroke-width="3" stroke-linejoin="round">
+    <path d="M40 262V170l70-52 70 52v92z"/><path d="M200 262V150l85-64 85 64v112z"/><path d="M390 262V182l60-44 60 44v80z"/></g>
+  <g fill="var(--green)"><path d="M28 172l82-62 82 62-8 8-74-55-74 55z"/><path d="M186 152l99-75 99 75-9 9-90-67-90 67z"/><path d="M380 184l70-52 70 52-8 8-62-46-62 46z"/></g>
+  <g fill="var(--gold)"><rect x="70" y="190" width="24" height="22" rx="3"/><rect x="126" y="190" width="24" height="22" rx="3"/>
+    <rect x="232" y="170" width="28" height="26" rx="3"/><rect x="310" y="170" width="28" height="26" rx="3"/><rect x="420" y="200" width="22" height="20" rx="3"/></g>
+  <g fill="var(--green)" opacity=".85"><rect x="96" y="226" width="28" height="36" rx="3"/><rect x="270" y="214" width="32" height="48" rx="3"/><rect x="458" y="226" width="24" height="36" rx="3"/></g>
+  <g fill="var(--green)" opacity=".55"><circle cx="190" cy="226" r="22"/><circle cx="378" cy="232" r="18"/><circle cx="16" cy="236" r="14"/></g>
+  <g stroke="var(--green)" stroke-width="4" opacity=".55"><path d="M190 248v14M378 250v12M16 250v12"/></g>
+</svg>`;
+
+async function renderLanding() {
+  $('#shell').classList.add('solo'); $('#nav').innerHTML = '';
+  $('#topActions').innerHTML = `<button class="btn small" data-act="show-login">Resident login</button>`;
+  let info = null;
+  try { if (SOCIETY_ID) info = await q(sb.rpc('public_society', { p_id: SOCIETY_ID })); } catch (e) { }
+  const name = info?.name || 'Society Hub', am = info?.amenities || [], notes = info?.notices || [];
+  $('#socName').textContent = name; $('#whoami').textContent = info?.address || '';
+  document.title = name;
+  $('#main').innerHTML = `<div class="landing">
+    <section class="hero">
+      <div class="hero-text">
+        <span class="eyebrow">Gated villa community</span>
+        <h1>${esc(name)}</h1>
+        <p class="lead">${esc(info?.about || `A friendly community of ${info?.villas || 'many'} villas, run by its residents' committee.`)}</p>
+        ${info?.address ? `<p class="sub">${esc(info.address)}</p>` : ''}
+      </div>
+      <div class="hero-art">${VILLAS_ART}</div>
+    </section>
+    <div class="facts">
+      ${info?.villas ? `<div><b class="num">${info.villas}</b><span>Villas</span></div>` : ''}
+      ${am.length ? `<div><b class="num">${am.length}</b><span>Shared amenities</span></div>` : ''}
+      <div><b>24×7</b><span>Gated security</span></div>
+    </div>
+    ${am.length ? `<section class="card"><h2>Amenities</h2><div class="pills">${am.map(a => `<span>${esc(a)}</span>`).join('')}</div></section>` : ''}
+    <section class="card"><h2>Community updates</h2>${notes.length ? `<div class="list">${notes.map(n => `<div class="item notice"><div class="body">
+      <div class="row" style="gap:8px"><span class="tag">${esc(n.tag)}</span><span class="meta">${dLabel(n.created_at)}</span></div>
+      <h3>${esc(n.title)}</h3>${n.body ? `<p style="white-space:pre-wrap">${esc(n.body)}</p>` : ''}</div></div>`).join('')}</div>`
+      : '<p class="sub">News from the committee will appear here.</p>'}</section>
+    <section class="card resident-cta"><div><h2>Live here?</h2><p class="sub">Residents sign in to pay maintenance, read all notices and raise complaints.</p></div>
+      <button class="btn primary" data-act="show-login">Resident login</button></section>
+    <p class="foot" style="justify-content:center">Managed by the residents' committee · Free, made with Society Hub</p>
+  </div>`;
+}
+
 /* ================= login ================= */
 function renderLogin(msg = '') {
   const email = ui.authStep === 'email';
-  solo(`<div class="auth"><div class="card">
-    <div><h1>Sign in</h1><p class="sub">Your society's maintenance, notices, complaints and bookings in one place. Free.</p></div>
+  solo(`<div class="auth"><button class="btn ghost small" data-act="show-home" style="align-self:flex-start;padding-left:0">← Back to home</button><div class="card">
+    <div><h1>Resident login</h1><p class="sub">Your society's maintenance, notices, complaints and bookings in one place. Free.</p></div>
     ${email ? `<p class="note" style="white-space:normal">Use the email address your society committee registered for you. New here? Send your villa number and email to your committee first.</p>` : ''}
     ${email ? `<form class="stack" data-form="email">
         <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="email" placeholder="you@gmail.com" value="${esc(ui.email)}"></div>
@@ -128,10 +176,16 @@ function renderNewSociety() {
 
 /* ================= app shell ================= */
 function tabs() {
-  const t = [['home', 'Home'], ['dues', 'Maintenance'], ['notices', 'Notices'], ['help', 'Helpdesk'], ['book', 'Bookings'], ['acc', 'Accounts'], ['dir', 'Directory']];
+  const f = soc().features || [], t = [['home', 'Home']];
+  if (isAdmin()) t.push(['dues', 'Maintenance']);
+  t.push(['notices', 'Notices'], ['help', 'Complaints']);
+  if (f.includes('book')) t.push(['book', 'Bookings']);
+  if (f.includes('acc')) t.push(['acc', 'Accounts']);
+  if (f.includes('dir')) t.push(['dir', 'Directory']);
   if (isAdmin()) t.push(['members', 'Members'], ['settings', 'Settings']);
   return t;
 }
+const has = k => (soc().features || []).includes(k);
 function renderApp() {
   $('#shell').classList.remove('solo');
   $('#socName').textContent = soc().name;
@@ -183,9 +237,9 @@ VIEWS.home = {
     } else {
       const v = cur.villa_id;
       const [notices, sum, dues, tickets, bookings] = await Promise.all([...base,
-      q(sb.from('dues').select('id,month,amount,status').eq('society_id', s).neq('status', 'paid').order('month')),
+      q(sb.from('dues').select('*').eq('society_id', s).order('month', { ascending: false }).limit(12)),
       q(sb.from('tickets').select('id,title,status').eq('society_id', s).neq('status', 'resolved').order('created_at', { ascending: false }).limit(4)),
-      v ? q(sb.from('bookings').select('*').eq('society_id', s).eq('villa_id', v).gte('day', todayISO()).order('day').limit(3)) : []]);
+      v && has('book') ? q(sb.from('bookings').select('*').eq('society_id', s).eq('villa_id', v).gte('day', todayISO()).order('day').limit(3)) : []]);
       D.home = { notices, sum, dues, tickets, bookings };
     }
   },
@@ -210,34 +264,37 @@ VIEWS.home = {
       <div class="card"><h2>Quick actions</h2><div class="row">
         ${!h.dues.length && sum.villas ? `<button class="btn primary" data-act="gen">Raise ${mLabel(thisMonth())} bills</button>` : `<button class="btn primary" data-act="go" data-v="dues">Verify payments</button>`}
         <button class="btn" data-act="go" data-v="members">Add residents</button>
-        <button class="btn" data-act="go" data-v="notices">Post a notice</button>
-        <button class="btn" data-act="invite">Share app link</button></div></div>${notices}`;
+        <button class="btn" data-act="go" data-v="notices">Post a notice</button></div></div>${notices}`;
     }
-    const due = h.dues.filter(d => d.status === 'due'), owe = due.reduce((a, d) => a + d.amount, 0), m0 = sum.months[0];
+    const due = h.dues.filter(d => d.status === 'due').sort((a, b) => a.month.localeCompare(b.month)), owe = due.reduce((a, d) => a + d.amount, 0), pend = h.dues.some(d => d.status === 'pending'), m0 = sum.months[0];
     return `<div class="head"><div><h1>Namaste, ${esc((cur.name || '').split(' ')[0])}</h1><p>${cur.villas?.number ? 'Villa ' + esc(cur.villas.number) + ' · ' : ''}${esc(soc().name)}</p></div></div>
     <div class="grid">
       <div class="card hero"><span class="label">Your maintenance</span>
         ${owe ? `<div class="big">${inr(owe)}</div><span class="sub">${due.map(d => mLabel(d.month)).join(', ')} · due by the ${soc().due_day}th</span><div><button class="btn primary" data-act="pay" data-v="${due[0].id}">Pay with UPI</button></div>`
-        : h.dues.length ? `<div class="big">Verifying</div><span class="sub">The treasurer will confirm your UPI payment soon.</span>`
+        : pend ? `<div class="big">Checking</div><span class="sub">The treasurer will confirm your UPI payment soon.</span>`
           : `<div class="big">All paid</div><span class="sub">Nothing due. Thank you!</span>`}</div>
       <div class="card"><span class="label">Your complaints</span>
         ${h.tickets.length ? h.tickets.map(t => `<div class="row"><span style="min-width:0;flex:1">${esc(t.title)}</span>${chip(t.status)}</div>`).join('') : '<span class="sub">No open complaints.</span>'}
         <div><button class="btn small" data-act="go" data-v="help">Raise a complaint</button></div></div>
-      <div class="card"><span class="label">Your bookings</span>
+      ${has('book') ? `<div class="card"><span class="label">Your bookings</span>
         ${h.bookings.length ? h.bookings.map(b => `<div><b>${esc(b.amenity)}</b><div class="sub">${dLabel(b.day)} · ${SLOTS[b.slot]}</div></div>`).join('') : '<span class="sub">No upcoming bookings.</span>'}
-        <div><button class="btn small" data-act="go" data-v="book">Book an amenity</button></div></div>
+        <div><button class="btn small" data-act="go" data-v="book">Book an amenity</button></div></div>` : ''}
     </div>${notices}
-    <div class="card"><div class="row"><h2>Where the money goes</h2><span class="sub spacer">Every resident sees the same accounts</span></div>
+    <div class="card"><h2>Your bills</h2>${h.dues.length ? `<div class="tablewrap" style="border:0"><table style="min-width:420px"><thead><tr><th>Month</th><th class="r">Amount</th><th>Status</th><th></th></tr></thead><tbody>
+      ${h.dues.map(d => `<tr><td>${mLabel(d.month)}</td><td class="r num">${inr(d.amount)}</td><td>${chip(d.status)}</td>
+      <td class="r">${d.status === 'due' ? `<button class="btn small primary" data-act="pay" data-v="${d.id}">Pay</button>` : d.status === 'paid' ? `<button class="btn small ghost" data-act="receipt" data-v="${d.id}">Receipt</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="sub">No bills yet.</p>'}</div>
+    ${has('acc') ? `<div class="card"><div class="row"><h2>Where the money goes</h2><span class="sub spacer">Every resident sees the same accounts</span></div>
       <div class="row" style="gap:28px"><div><div class="label">Fund balance</div><div class="big">${inr(bal)}</div></div>
       ${m0 ? `<div><div class="label">${mLabel(m0.month)} collection</div><div class="big">${Math.round(m0.collected / (m0.billed || 1) * 100)}%</div></div>` : ''}</div>
-      <div><button class="btn small" data-act="go" data-v="acc">See accounts</button></div></div>`;
+      <div><button class="btn small" data-act="go" data-v="acc">See accounts</button></div></div>` : ''}`;
   }
 };
 
 function noticeList(arr) {
   if (!arr.length) return '<div class="empty">No notices yet.</div>';
   return `<div class="list">${arr.map(n => `<div class="item notice"><div class="body">
-    <div class="row" style="gap:8px">${n.pinned ? '<span class="pin">Pinned</span>' : ''}<span class="tag">${esc(n.tag)}</span><span class="meta">${dLabel(n.created_at)}</span></div>
+    <div class="row" style="gap:8px">${n.pinned ? '<span class="pin">Pinned</span>' : ''}${isAdmin() && n.is_public ? '<span class="chip c-info">Public</span>' : ''}<span class="tag">${esc(n.tag)}</span><span class="meta">${dLabel(n.created_at)}</span></div>
     <h3>${esc(n.title)}</h3><p style="white-space:pre-wrap">${esc(n.body)}</p></div>
     ${isAdmin() ? `<div class="row" style="flex-wrap:nowrap"><button class="btn small ghost" data-act="pin" data-v="${n.id}" data-p="${n.pinned ? 1 : 0}">${n.pinned ? 'Unpin' : 'Pin'}</button><button class="btn small ghost danger" data-act="del-notice" data-v="${n.id}">Delete</button></div>` : ''}</div>`).join('')}</div>`;
 }
@@ -297,7 +354,8 @@ VIEWS.notices = {
       <div class="field"><label for="nTitle">Title</label><input id="nTitle" name="title" required maxlength="160" placeholder="e.g. Power shutdown on Sunday"></div>
       <div class="field"><label for="nBody">Message</label><textarea id="nBody" name="body" required></textarea></div>
       <div class="two"><div class="field"><label for="nTag">Category</label><select id="nTag" name="tag"><option>General</option><option>Maintenance</option><option>Event</option><option>Security</option><option>Committee</option><option>Urgent</option></select></div>
-      <label class="check" style="align-self:end;padding-bottom:9px"><input id="nPin" type="checkbox" name="pinned"> Pin to top</label></div>
+      <div class="stack" style="display:flex;flex-direction:column;gap:6px;align-self:end"><label class="check"><input id="nPin" type="checkbox" name="pinned"> Pin to top</label>
+      <label class="check"><input id="nPub" type="checkbox" name="is_public"> Also show on the public home page</label></div></div>
       <div><button class="btn primary">Publish notice</button></div></form></div>` : ''}
     <div class="card">${noticeList(D.notices)}</div>`;
   }
@@ -398,34 +456,25 @@ VIEWS.members = {
   },
   draw() {
     const { m, v } = D.members, qq = ui.q.trim().toLowerCase();
-    const list = m.filter(x => !qq || (x.name + ' ' + (x.villas?.number || '') + ' ' + x.email + ' ' + x.phone).toLowerCase().includes(qq)).sort((a, b) => byNum(a.villas?.number || 'zzz', b.villas?.number || 'zzz'));
-    const vOpts = sel => `<option value="">No villa</option>` + v.map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.number)}</option>`).join('');
-    const joined = m.filter(x => x.status === 'active').length;
-    return `<div class="head"><div><h1>Members</h1><p>${m.length} added · ${joined} signed in · ${m.length - joined} not signed in yet</p></div>
+    const list = m.filter(x => !qq || (x.name + ' ' + (x.villas?.number || '') + ' ' + x.email).toLowerCase().includes(qq)).sort((a, b) => byNum(a.villas?.number || 'zzz', b.villas?.number || 'zzz'));
+    return `<div class="head"><div><h1>Members</h1><p>${m.length} people · they sign in with the email you add here</p></div>
       <button class="btn" data-act="invite">Share app link</button></div>
-    <div class="card"><h2>Add a resident</h2><p class="sub">They sign in with this email and see your society straight away. Add both husband and wife if both want access.</p>
-      ${v.length ? `<form class="stack" data-form="member"><div class="two">
-        <div class="field"><label for="mVilla">Villa</label><select id="mVilla" name="villa_id" required>${v.map(x => `<option value="${x.id}">${esc(x.number)}</option>`).join('')}</select></div>
-        <div class="field"><label for="mName">Name</label><input id="mName" name="name" required></div>
-        <div class="field"><label for="mEmail">Email</label><input id="mEmail" name="email" type="email" required placeholder="name@gmail.com"></div>
-        <div class="field"><label for="mPhone">Mobile</label><input id="mPhone" name="phone" inputmode="tel"></div>
-        <div class="field"><label for="mRole">Role</label><select id="mRole" name="role"><option value="resident">Resident</option><option value="admin">Admin (committee)</option></select></div></div>
-        <div><button class="btn primary">Add resident</button></div></form>
-      <details><summary>Add many at once (paste from Excel)</summary><form class="stack" data-form="members-paste" style="margin-top:10px">
-        <div class="field"><label for="mList">One person per line: villa, name, email, mobile</label><textarea id="mList" name="list" placeholder="V-001, Ramesh Iyer, ramesh@gmail.com, 9845012345&#10;V-002, Priya Nair, priya@gmail.com, 9845067890"></textarea></div>
+    <div class="card">${v.length ? `<form class="addrow" data-form="member">
+        <select name="villa_id" aria-label="Villa" required>${v.map(x => `<option value="${x.id}">${esc(x.number)}</option>`).join('')}</select>
+        <input name="name" aria-label="Name" placeholder="Name" required>
+        <input name="email" type="email" aria-label="Email" placeholder="Email" required>
+        <button class="btn primary">Add</button></form>
+      <details><summary class="sub">Adding many villas? Paste a list</summary><form class="stack" data-form="members-paste" style="margin-top:10px">
+        <div class="field"><label for="mList">One per line: villa, name, email</label><textarea id="mList" name="list" placeholder="B-12, Neha Sharma, neha@gmail.com"></textarea></div>
         <div><button class="btn">Add all</button></div></form></details>`
-        : `<p>Add villas in <button class="btn small" data-act="go" data-v="settings">Settings</button> first.</p>`}</div>
-    <div class="row"><h2>Everyone</h2><input class="search spacer" type="search" id="memSearch" data-act="memsearch" placeholder="Search" value="${esc(ui.q)}" aria-label="Search members"></div>
-    ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Villa</th><th>Contact</th><th>Status</th><th>Role</th><th>Committee title</th><th></th></tr></thead><tbody>
-    ${list.map(x => `<tr><td><b>${esc(x.name)}</b>${x.user_id === uid() ? ' <span class="chip c-info">You</span>' : ''}</td>
-      <td><select class="mini" aria-label="Villa for ${esc(x.name)}" data-act="m-villa" data-v="${x.id}">${vOpts(x.villa_id)}</select></td>
-      <td class="sub">${esc(x.email)}<div>${esc(x.phone)}</div></td>
-      <td>${x.status === 'active' ? '<span class="chip c-ok">Signed in</span>' : '<span class="chip c-warn">Not yet</span>'}</td>
-      <td><select class="mini" aria-label="Role for ${esc(x.name)}" data-act="m-role" data-v="${x.id}"><option value="resident">Resident</option><option value="admin" ${x.role === 'admin' ? 'selected' : ''}>Admin</option></select></td>
-      <td><input class="mini" aria-label="Title for ${esc(x.name)}" data-act="m-title" data-v="${x.id}" value="${esc(x.title)}" placeholder="e.g. Treasurer"></td>
-      <td class="r"><button class="btn small ghost danger" data-act="m-remove" data-v="${x.id}">Remove</button></td></tr>`).join('')}
-    </tbody></table></div>` : '<div class="empty">No one added yet.</div>'}
-    <p class="sub">Admins can raise bills, confirm payments, post notices and manage members. A committee title shows in the directory with the phone number.</p>`;
+      : `<p>First add your villa numbers in <button class="btn small" data-act="go" data-v="settings">Settings</button>.</p>`}</div>
+    ${m.length > 8 ? `<input class="search" type="search" id="memSearch" data-act="memsearch" placeholder="Search name, villa or email" value="${esc(ui.q)}" aria-label="Search members">` : ''}
+    <div class="card"><div class="list">${list.map(x => `<div class="item" style="align-items:center">
+      <b class="num" style="width:64px;flex:none">${esc(x.villas?.number || '—')}</b>
+      <div class="body"><b>${esc(x.name)}</b>${x.user_id === uid() ? ' <span class="chip c-info">You</span>' : ''}${x.role === 'admin' ? ' <span class="chip c-ok">Admin</span>' : ''}
+        <div class="meta">${esc(x.email)}${x.status !== 'active' ? ' · not signed in yet' : ''}</div></div>
+      ${x.user_id === uid() ? '' : `<button class="btn small ghost" data-act="m-admin" data-v="${x.id}" data-r="${x.role === 'admin' ? 'resident' : 'admin'}">${x.role === 'admin' ? 'Remove admin' : 'Make admin'}</button>
+      <button class="btn small ghost danger" data-act="m-remove" data-v="${x.id}">Remove</button>`}</div>`).join('') || '<p class="sub">No one found.</p>'}</div></div>`;
   },
   after() { const s = $('#memSearch'); if (s && ui.q) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }
 };
@@ -445,9 +494,14 @@ VIEWS.settings = {
       <div class="field"><label for="sAmt">Maintenance per villa (₹ a month)</label><input id="sAmt" type="number" min="0" name="maintenance_amount" value="${s.maintenance_amount}"></div>
       <div class="field"><label for="sDue">Due day of month</label><input id="sDue" type="number" min="1" max="28" name="due_day" value="${s.due_day}"></div>
       <div class="field"><label for="sOpen">Opening fund balance (₹)</label><input id="sOpen" type="number" step="0.01" name="opening_balance" value="${s.opening_balance}"></div>
-      <div class="field"><label for="sAddr">Address</label><input id="sAddr" name="address" value="${esc(s.address)}"></div></div>
-      <div class="two"><div class="field"><label for="sAm">Amenities that can be booked (one per line)</label><textarea id="sAm" name="amenities">${esc((s.amenities || []).join('\n'))}</textarea></div>
-      <div class="field"><label for="sCon">Emergency contacts (one per line: Name - number)</label><textarea id="sCon" name="contacts" placeholder="Main gate - 9845000111">${esc((s.contacts || []).map(c => c.name + ' - ' + c.phone).join('\n'))}</textarea></div></div>
+      <div class="field"><label for="sAddr">Address (shown on the public page)</label><input id="sAddr" name="address" value="${esc(s.address)}"></div></div>
+      <div class="field"><label for="sAbout">About the society (shown on the public page)</label><textarea id="sAbout" name="about" placeholder="e.g. 400 villas with a clubhouse, pool and gardens, 10 minutes from the highway.">${esc(s.about || '')}</textarea></div>
+      <div class="two"><div class="field"><label for="sAm">Amenities (one per line, shown on the public page)</label><textarea id="sAm" name="amenities">${esc((s.amenities || []).join('\n'))}</textarea></div>
+      <div class="field"><label for="sCon">Emergency contacts for the Directory (Name - number)</label><textarea id="sCon" name="contacts" placeholder="Main gate - 9845000111">${esc((s.contacts || []).map(c => c.name + ' - ' + c.phone).join('\n'))}</textarea></div></div>
+      <fieldset class="features"><legend>Extra screens (off keeps the app simple)</legend>
+        <label class="check"><input type="checkbox" name="f_book" ${has('book') ? 'checked' : ''}> Bookings: residents book the clubhouse and other amenities</label>
+        <label class="check"><input type="checkbox" name="f_acc" ${has('acc') ? 'checked' : ''}> Accounts: everyone sees money collected and spent</label>
+        <label class="check"><input type="checkbox" name="f_dir" ${has('dir') ? 'checked' : ''}> Directory: list of villas and emergency numbers</label></fieldset>
       <div><button class="btn primary">Save</button></div></form></div>
 
     <div class="card"><h2>Villas</h2><p class="sub">${D.settings.villas} villas in the list. Residents can join only with a villa number from this list.</p>
@@ -502,7 +556,7 @@ async function busy(btn, fn) {
   if (btn) btn.disabled = true;
   try { await fn(); } catch (e) { toast(e.message, true); } finally { if (btn && btn.isConnected) btn.disabled = false; }
 }
-const findDue = id => D.dues?.rows.find(x => x.id == id) || D.home?.dues?.find(x => x.id == id);
+const findDue = id => D.dues?.rows?.find(x => x.id == id) || D.home?.dues?.find(x => x.id == id);
 
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t) return;
@@ -515,6 +569,8 @@ document.addEventListener('click', e => {
     case 'signout': return sb.auth.signOut();
     case 'new-society': return renderNewSociety();
     case 'auth-back': ui.authStep = 'email'; return renderLogin();
+    case 'show-login': if (location.hash !== '#login') location.hash = 'login'; else renderLogin(); return;
+    case 'show-home': history.replaceState(null, '', location.pathname); return renderLanding();
     case 'google': return go(async () => { const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } }); if (error) throw error; });
     case 'go': ui.tab = v; ui.q = ''; window.scrollTo(0, 0); return show();
     case 'close': return closeModal();
@@ -555,6 +611,7 @@ document.addEventListener('click', e => {
     case 'del-notice': return confirmStep(t, 'Delete?', () => go(async () => { await q(sb.from('notices').delete().eq('id', v)); toast('Notice deleted'); await refresh(); }));
     case 'cancel-book': return confirmStep(t, 'Cancel it?', () => go(async () => { await q(sb.from('bookings').delete().eq('id', v)); toast('Booking cancelled'); await refresh(); }));
     case 'del-exp': return confirmStep(t, 'Delete?', () => go(async () => { await q(sb.from('expenses').delete().eq('id', v)); toast('Expense deleted'); await refresh(); }));
+    case 'm-admin': return go(async () => { await q(sb.from('members').update({ role: t.dataset.r }).eq('id', v)); toast(t.dataset.r === 'admin' ? 'Now an admin' : 'Admin removed'); await refresh(); });
     case 'm-remove': return confirmStep(t, 'Remove?', () => go(async () => { await q(sb.from('members').delete().eq('id', v)); toast('Member removed'); await refresh(); }));
     case 'new-key': return confirmStep(t, 'Old key will stop. Sure?', () => go(async () => { const k = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, ''); await q(sb.from('society_secrets').update({ export_key: k }).eq('society_id', sid())); D.settings.key = k; toast('New key made. Update your Google Sheet.'); redraw(); }));
     case 'backup-json': return go(async () => { const data = await q(sb.rpc('export_society', { p_key: D.settings.key })); download(`backup-${todayISO()}.json`, JSON.stringify(data, null, 1), 'application/json'); });
@@ -615,13 +672,13 @@ document.addEventListener('submit', e => {
         toast(mine ? 'Society created. Now add your villas.' : `Society created. ${d.email.trim()} can now sign in as its admin.`);
         return boot();
       }
-      case 'member': await q(sb.from('members').insert({ society_id: sid(), villa_id: d.villa_id, name: d.name.trim(), email: d.email.trim().toLowerCase(), phone: d.phone.trim(), role: d.role, status: 'invited' })).catch(e => { throw /duplicate|unique/i.test(e.message) ? new Error('This email is already added.') : e; }); toast(`${d.name.trim()} added. They can sign in now.`); return refresh();
+      case 'member': await q(sb.from('members').insert({ society_id: sid(), villa_id: d.villa_id, name: d.name.trim(), email: d.email.trim().toLowerCase(), status: 'invited' })).catch(e => { throw /duplicate|unique/i.test(e.message) ? new Error('This email is already added.') : e; }); toast(`${d.name.trim()} added. They can sign in now.`); return refresh();
       case 'members-paste': {
         const byNo = Object.fromEntries(D.members.v.map(x => [x.number.toUpperCase(), x.id])), have = new Set(D.members.m.map(x => x.email));
         const rows = [], bad = [];
-        d.list.split('\n').map(l => l.split(/[,\t]/).map(x => x.trim())).filter(p => p[0]).forEach(([no, name, email = '', phone = ''], i) => {
+        d.list.split('\n').map(l => l.split(/[,\t]/).map(x => x.trim())).filter(p => p[0]).forEach(([no, name, email = ''], i) => {
           email = email.toLowerCase(); const vid = byNo[(no || '').toUpperCase()];
-          if (!vid || !name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad.push(no || 'line ' + (i + 1)); else if (!have.has(email)) { have.add(email); rows.push({ society_id: sid(), villa_id: vid, name, email, phone, status: 'invited' }); }
+          if (!vid || !name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad.push(no || 'line ' + (i + 1)); else if (!have.has(email)) { have.add(email); rows.push({ society_id: sid(), villa_id: vid, name, email, status: 'invited' }); }
         });
         if (rows.length) await q(sb.from('members').insert(rows));
         toast(`${rows.length} added${bad.length ? ` · check these lines: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}` : ''}`, !!bad.length); return refresh();
@@ -629,18 +686,18 @@ document.addEventListener('submit', e => {
       case 'utr': await q(sb.rpc('submit_payment', { p_due_id: +f.dataset.v, p_utr: d.utr })); closeModal(); toast('Sent to the treasurer for checking'); return refresh();
       case 'offline': await q(sb.from('dues').update({ status: 'paid', mode: d.mode, paid_on: d.paid_on, utr: d.utr.trim(), confirmed_by: uid() }).eq('id', f.dataset.v)); closeModal(); toast('Marked paid'); return refresh();
       case 'gen': { const n = await q(sb.rpc('generate_dues', { p_society: sid(), p_month: d.month + '-01', p_amount: +d.amount })); closeModal(); ui.month = d.month + '-01'; ui.tab = 'dues'; toast(n ? `${n} bills raised for ${mLabel(ui.month)}` : 'All villas already have a bill for this month'); return refresh(); }
-      case 'notice': await q(sb.from('notices').insert({ society_id: sid(), title: d.title.trim(), body: d.body.trim(), tag: d.tag, pinned: !!d.pinned })); toast('Notice published'); return refresh();
+      case 'notice': await q(sb.from('notices').insert({ society_id: sid(), title: d.title.trim(), body: d.body.trim(), tag: d.tag, pinned: !!d.pinned, is_public: !!d.is_public })); toast('Notice published'); return refresh();
       case 'ticket': await q(sb.from('tickets').insert({ society_id: sid(), villa_id: cur.villa_id, category: d.category, title: d.title.trim(), details: d.details.trim() })); toast('Complaint raised'); return refresh();
       case 'booking': await q(sb.from('bookings').insert({ society_id: sid(), villa_id: cur.villa_id, amenity: d.amenity, day: d.day, slot: d.slot, purpose: d.purpose.trim() })); toast(`Booked ${d.amenity} for ${dLabel(d.day)}`); return refresh();
       case 'expense': await q(sb.from('expenses').insert({ society_id: sid(), head: d.head, amount: +d.amount, spent_on: d.spent_on, note: d.note.trim() })); toast('Expense added'); return refresh();
       case 'society': {
         const patch = {
-          name: d.name.trim(), upi_id: d.upi_id.trim(), maintenance_amount: +d.maintenance_amount || 0, due_day: +d.due_day || 10, opening_balance: +d.opening_balance || 0, address: d.address.trim(),
+          name: d.name.trim(), upi_id: d.upi_id.trim(), about: d.about.trim(), features: ['book', 'acc', 'dir'].filter(k => d['f_' + k]), maintenance_amount: +d.maintenance_amount || 0, due_day: +d.due_day || 10, opening_balance: +d.opening_balance || 0, address: d.address.trim(),
           amenities: d.amenities.split('\n').map(x => x.trim()).filter(Boolean),
           contacts: d.contacts.split('\n').map(x => x.trim()).filter(Boolean).map(x => { const i = x.lastIndexOf('-'); return i > 0 ? { name: x.slice(0, i).trim(), phone: x.slice(i + 1).trim() } : { name: x, phone: '' }; })
         };
         const row = await q(sb.from('societies').update(patch).eq('id', sid()).select().single());
-        cur.societies = row; $('#socName').textContent = row.name; toast('Saved'); return redraw();
+        cur.societies = row; toast('Saved'); return renderApp();
       }
       case 'villas-range': {
         const from = +d.from, to = +d.to, pad = +d.pad;
