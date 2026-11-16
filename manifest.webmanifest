@@ -1,0 +1,11 @@
+{
+  "name": "Society Hub",
+  "short_name": "Society",
+  "description": "Maintenance, notices, complaints and bookings for your society. Free.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3F5F1",
+  "theme_color": "#1E5B43",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

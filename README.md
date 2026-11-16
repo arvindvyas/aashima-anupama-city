@@ -1,0 +1,75 @@
+# Society Hub
+
+A free app for villa and apartment societies. Residents pay maintenance by UPI, read notices, raise complaints and book amenities. The committee confirms payments, raises bills, posts notices and keeps open accounts that every resident can see.
+
+- **Website:** GitHub Pages (free)
+- **Database and login:** Supabase free plan (Mumbai server)
+- **Payments:** direct UPI to the society account, with no gateway and no fees
+- **Backups:** nightly Google Sheet + daily encrypted copy in a private GitHub repo
+
+## Files
+
+| File | What it is |
+|---|---|
+| `index.html`, `css/`, `js/` | The app |
+| `js/config.js` | Your Supabase URL and key go here |
+| `supabase/schema.sql` | Database tables and security rules. Run once in Supabase. |
+| `backup/google-sheet-backup.gs` | Nightly backup into a Google Sheet |
+| `backup/github-backup-workflow.yml` | Daily full backup into a private GitHub repo |
+| `prototype.html` | The first clickable demo with sample data |
+
+## Setup (about 30 minutes, once)
+
+### 1. Supabase
+1. Sign up at https://supabase.com (free, no card needed).
+2. **New project.** Name it `society-hub` and choose region **South Asia (Mumbai)**. Save the database password somewhere safe.
+3. Open **SQL Editor → New query**, paste all of `supabase/schema.sql` and click **Run**.
+4. Go to **Authentication → Sign In / Providers** and check that **Email** is on.
+5. Go to **Authentication → Emails → Magic Link** and add this line to the template so people also get a 6-digit code:
+   `Your login code is {{ .Token }}`
+6. Go to **Authentication → URL Configuration** and set **Site URL** to your GitHub Pages address (step 2 below), for example `https://yourname.github.io/society-hub/`. Add `http://localhost:8000` to Redirect URLs for testing.
+7. **Email limit:** Supabase's built-in email sends only a few emails an hour. Before inviting 400 villas, connect a free email sender. **Brevo** sends 300 a day for free: create a Brevo account, open SMTP & API, and copy the details into Supabase **Authentication → Emails → SMTP Settings**.
+8. Go to **Project Settings → API** and copy the **Project URL** and the **anon public** key into `js/config.js`.
+
+> The anon key is meant to be public. The security rules in the database decide what each person can see.
+
+### 2. GitHub Pages
+1. Create a **public** repo, for example `society-hub`, and push these files.
+2. Repo **Settings → Pages → Deploy from a branch → main / (root)**.
+3. After a minute the app is live at `https://<your-github-name>.github.io/society-hub/`.
+
+### 3. First use (committee)
+1. Open the app, sign in with your email, and choose **Set up a new society**.
+2. In **Settings**: set the UPI ID, the maintenance amount and the due day, then add villas (for example `V-` from 1 to 400).
+3. Go to **Members → Share invite code** and post the message in the society WhatsApp group.
+4. Approve residents as they join. Give a few people the **Admin** role and a title (Treasurer, Secretary and so on).
+5. Each month go to **Maintenance → Raise bills**. Residents pay by UPI and enter the UTR, and the treasurer confirms each payment.
+
+### 4. Backups (do both)
+- **Google Sheet:** follow the steps at the top of `backup/google-sheet-backup.gs`.
+- **Private GitHub repo:** create a private repo, for example `society-hub-backups`, and follow the steps at the top of `backup/github-backup-workflow.yml`. This daily job also stops the free Supabase project from pausing.
+
+## Try it on your computer
+```
+cd villa-society
+python3 -m http.server 8000
+```
+Then open http://localhost:8000
+
+## Free plan limits for 400 villas
+- Database 500 MB. This society uses about 20 MB a year.
+- 50,000 users a month. You have about 800.
+- Built-in email is limited, so use Brevo (step 1.7).
+
+## Who can do what (enforced by the database)
+| | Resident | Admin |
+|---|---|---|
+| See own bills and pay | ✅ | ✅ (all villas) |
+| Mark a bill paid | ❌ (can only submit a UTR) | ✅ |
+| See other villas' bills | ❌ | ✅ |
+| Notices | read | post, pin, delete |
+| Complaints | raise and see own | see all, update status |
+| Bookings | book for own villa, see all | cancel any |
+| Accounts and expenses | read | add and delete |
+| Phone numbers | committee only | all |
+| Members, villas, settings | ❌ | ✅ |

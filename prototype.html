@@ -1,0 +1,503 @@
+<title>Society Hub</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: app shell — left rail of sections on desktop, scrolling tab strip on phones; one working view at a time */
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --surface-2:#EAEFE8; --line:#D9E0D6;
+  --ink:#16201A; --muted:#5D6B61;
+  --green:#1E5B43; --green-soft:#DCEBE2; --on-green:#FFFFFF;
+  --gold:#C98A0B; --gold-soft:#FBEFD2;
+  --ok:#1F7A4D; --ok-soft:#DDF2E6; --warn:#A86800; --warn-soft:#FCEFD6; --bad:#B23A32; --bad-soft:#F8E0DD;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101612; --surface:#18211B; --surface-2:#202B24; --line:#2C3930;
+  --ink:#E7EEE9; --muted:#9AAAA0;
+  --green:#5DBB8E; --green-soft:#1D3328; --on-green:#0D1A13;
+  --gold:#E9B44C; --gold-soft:#3A2E14;
+  --ok:#5DCB91; --ok-soft:#173326; --warn:#E9B44C; --warn-soft:#3A2E14; --bad:#F08279; --bad-soft:#3D1D1A;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101612; --surface:#18211B; --surface-2:#202B24; --line:#2C3930;
+  --ink:#E7EEE9; --muted:#9AAAA0;
+  --green:#5DBB8E; --green-soft:#1D3328; --on-green:#0D1A13;
+  --gold:#E9B44C; --gold-soft:#3A2E14;
+  --ok:#5DCB91; --ok-soft:#173326; --warn:#E9B44C; --warn-soft:#3A2E14; --bad:#F08279; --bad-soft:#3D1D1A;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;margin:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:1.75rem} h2{font-size:1.2rem} h3{font-size:1rem}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.mark{width:34px;height:34px;border-radius:9px;background:var(--green);display:grid;place-items:center;flex:none}
+.mark svg{width:20px;height:20px}
+.brand b{font-family:var(--f-display);font-size:1.05rem;display:block;line-height:1.1}
+.brand small{color:var(--muted);font-size:.78rem}
+.role{display:flex;background:var(--surface-2);border-radius:999px;padding:3px}
+.role button{border:0;background:none;padding:6px 14px;border-radius:999px;cursor:pointer;font-weight:600;font-size:.85rem;color:var(--muted)}
+.role button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.proto{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);background:var(--gold-soft);padding:4px 8px;border-radius:6px}
+
+.shell{display:grid;grid-template-columns:210px minmax(0,1fr);gap:28px;max-width:1180px;margin:0 auto;
+  padding-block:24px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+nav.side{display:flex;flex-direction:column;gap:2px;position:sticky;top:90px;align-self:start}
+nav.side button{display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px;cursor:pointer;font-weight:600;color:var(--muted)}
+nav.side button:hover{background:var(--surface-2);color:var(--ink)}
+nav.side button[aria-current="page"]{background:var(--green-soft);color:var(--green)}
+nav.side .badge{margin-left:auto;background:var(--gold);color:#fff;font-size:.7rem;border-radius:999px;padding:1px 7px}
+nav.side svg{width:18px;height:18px;flex:none}
+main{min-width:0;display:flex;flex-direction:column;gap:22px}
+
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr);padding-top:12px;gap:14px}
+  nav.side{flex-direction:row;position:static;overflow-x:auto;gap:4px;margin-inline:-4px;padding-bottom:4px;scrollbar-width:none}
+  nav.side button{white-space:nowrap;padding:8px 12px;background:var(--surface);border:1px solid var(--line)}
+  nav.side button[aria-current="page"]{border-color:var(--green)}
+  h1{font-size:1.45rem}
+}
+
+.head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.head > div{margin-right:auto;min-width:0}
+.head p{color:var(--muted);margin-top:4px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card.hero{background:var(--green);color:var(--on-green);border-color:transparent}
+.card.hero .label,.card.hero .sub{color:inherit;opacity:.8}
+.label{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.big{font-family:var(--f-display);font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.sub{color:var(--muted);font-size:.88rem}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.spacer{margin-left:auto}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:.88rem;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.btn.primary:hover{filter:brightness(1.08)}
+.card.hero .btn.primary{background:var(--on-green);color:var(--green);border-color:transparent}
+.btn.small{padding:5px 10px;font-size:.8rem}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--bad)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.c-ok{background:var(--ok-soft);color:var(--ok)} .c-warn{background:var(--warn-soft);color:var(--warn)}
+.c-bad{background:var(--bad-soft);color:var(--bad)} .c-info{background:var(--green-soft);color:var(--green)}
+.tag{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--green)}
+
+.list{display:flex;flex-direction:column}
+.item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0;padding-top:0}
+.item .body{min-width:0;flex:1}
+.item .meta{color:var(--muted);font-size:.8rem}
+.notice h3{margin:2px 0 4px}
+.notice p{color:var(--muted);max-width:65ch}
+.pin{color:var(--gold);font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);font-size:.9rem;vertical-align:middle}
+th{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+
+.bar{height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--green);border-radius:999px}
+.card.hero .bar{background:rgba(255,255,255,.2)} .card.hero .bar span{background:var(--on-green)}
+
+form.stack{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:.8rem;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+.field textarea{min-height:80px;resize:vertical}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.check{display:flex;gap:8px;align-items:center;font-size:.88rem}
+
+.empty{color:var(--muted);padding:18px;text-align:center;border:1px dashed var(--line);border-radius:var(--r)}
+.villas{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.villa{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:4px}
+.villa .no{font-family:var(--f-display);font-weight:700;font-size:1.1rem}
+.villa .tagline{color:var(--muted);font-size:.82rem}
+
+.overlay{position:fixed;inset:0;background:rgba(10,20,14,.5);display:grid;place-items:center;z-index:20;padding:16px}
+.modal{background:var(--surface);border-radius:14px;max-width:440px;width:100%;padding:22px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto}
+.upi{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:8px;padding:10px 12px;font-weight:700}
+.upi code{font-family:ui-monospace,Menlo,monospace;margin-right:auto;overflow-wrap:anywhere}
+.qr{width:150px;height:150px;align-self:center;border-radius:8px;background:var(--surface-2);display:grid;place-items:center}
+.qr canvas{image-rendering:pixelated}
+.note{background:var(--surface-2);border-radius:8px;padding:10px 12px;font-size:.85rem;color:var(--muted);white-space:pre-wrap}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;z-index:30;font-size:.88rem}
+.foot{color:var(--muted);font-size:.8rem;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+@media (prefers-reduced-motion:no-preference){.card,.villa{transition:border-color .15s}}
+</style>
+
+<header class="top">
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="var(--on-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></div>
+    <div style="min-width:0"><b id="socName">Green Meadows Villas</b><small id="whoami"></small></div>
+  </div>
+  <span class="proto">Prototype · demo data</span>
+  <div class="role" role="group" aria-label="View as">
+    <button id="roleRes" data-act="role" data-v="resident">Resident</button>
+    <button id="roleAdm" data-act="role" data-v="admin">Admin</button>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="side" id="nav" aria-label="Sections"></nav>
+  <main id="main"></main>
+</div>
+<div id="layer"></div>
+
+<script>
+const KEY='society-hub-proto-v1';
+const ICONS={
+ home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+ dues:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/>',
+ notices:'<path d="M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/>',
+ help:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+ book:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+ dir:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+ acc:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+};
+const TABS=[['home','Home'],['dues','Maintenance'],['notices','Notices'],['help','Helpdesk'],['book','Bookings'],['acc','Accounts'],['dir','Directory']];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ME='V-07';
+
+function seed(){
+  const owners=['Ramesh Iyer','Priya Nair','Sandeep Rao','Fatima Shaikh','Vikram Joshi','Ananya Das','Neha Kulkarni','Harish Menon','Gurpreet Singh','Lakshmi Reddy','Rohan Mehta','Kavita Bansal','Thomas Mathew','Sunita Patil'];
+  const villas=owners.map((o,i)=>({id:'V-'+String(i+1).padStart(2,'0'),owner:o,phone:'98'+String(45012300+i*7919).slice(0,8),type:i%3===0?'4 BHK':'3 BHK',committee:[0,3,8].includes(i)?['President','Treasurer','Secretary'][[0,3,8].indexOf(i)]:''}));
+  const dues=[];let n=1;
+  ['2026-09','2026-10','2026-11'].forEach((m,mi)=>villas.forEach((v,vi)=>{
+    let st='paid';
+    if(mi===0&&vi===10) st='due';
+    if(mi===1&&[10,12].includes(vi)) st='due';
+    if(mi===2){ st=[0,1,2,4,5,8,9,13].includes(vi)?'paid':[3,11].includes(vi)?'pending':'due'; }
+    dues.push({id:n++,villa:v.id,month:m,amount:3500,status:st,utr:st==='pending'?'4321'+(80000+vi*13):'',paidOn:st==='paid'?m+'-0'+(3+vi%6):'',mode:st==='paid'?(vi%4===0?'Cash':'UPI'):''});
+  }));
+  return {
+    settings:{name:'Green Meadows Villas',upi:'greenmeadows.rwa@okaxis',rate:3500,dueDay:10},
+    villas,dues,
+    notices:[
+      {id:1,title:'Water tank cleaning on Saturday',body:'Overhead tanks will be cleaned on 21 Nov between 10 AM and 2 PM. Please store water for the morning.',tag:'Maintenance',date:'2026-11-15',pinned:true},
+      {id:2,title:'Kartik Purnima get-together at the clubhouse',body:'Diyas, snacks and music from 6:30 PM. Each family can bring one dish. Kids’ rangoli contest at 7 PM.',tag:'Event',date:'2026-11-12',pinned:false},
+      {id:3,title:'New security agency from 1 December',body:'The committee has signed with a new agency after comparing three quotes. Guards will carry ID cards; visitor entries move to the gate register app.',tag:'Security',date:'2026-11-08',pinned:false},
+      {id:4,title:'AGM minutes uploaded',body:'Minutes of the October AGM are with the Secretary. Key decision: maintenance stays at ₹3,500 per villa for 2026–27.',tag:'Committee',date:'2026-10-28',pinned:false}
+    ],
+    tickets:[
+      {id:101,villa:'V-07',cat:'Plumbing',title:'Garden tap leaking near gate',status:'in-progress',date:'2026-11-13',note:'Plumber visiting Tuesday'},
+      {id:102,villa:'V-02',cat:'Electrical',title:'Street light near V-02 not working',status:'open',date:'2026-11-14',note:''},
+      {id:103,villa:'V-11',cat:'Housekeeping',title:'Garbage not collected on Sunday',status:'resolved',date:'2026-11-09',note:'Vendor informed, schedule fixed'},
+      {id:104,villa:'V-05',cat:'Security',title:'Gate barrier slow to open',status:'open',date:'2026-11-15',note:''}
+    ],
+    bookings:[
+      {id:201,amenity:'Clubhouse hall',date:'2026-11-22',slot:'Evening (5–10 PM)',villa:'V-03',purpose:'Birthday party'},
+      {id:202,amenity:'Guest room',date:'2026-11-20',slot:'Full day',villa:'V-07',purpose:'Parents visiting'},
+      {id:203,amenity:'Badminton court',date:'2026-11-18',slot:'Morning (6–10 AM)',villa:'V-09',purpose:''}
+    ],
+    expenses:[
+      {id:301,date:'2026-11-05',head:'Security',amount:28000,note:'Guards – November'},
+      {id:302,date:'2026-11-05',head:'Housekeeping',amount:9000,note:'2 staff'},
+      {id:303,date:'2026-11-07',head:'Electricity',amount:6420,note:'Common area bill'},
+      {id:304,date:'2026-11-10',head:'Repairs',amount:3800,note:'Pump motor rewinding'},
+      {id:305,date:'2026-10-05',head:'Security',amount:28000,note:'Guards – October'},
+      {id:306,date:'2026-10-05',head:'Housekeeping',amount:9000,note:'2 staff'},
+      {id:307,date:'2026-10-08',head:'Electricity',amount:6110,note:'Common area bill'},
+      {id:308,date:'2026-10-20',head:'Gardening',amount:4500,note:'Plants and manure'}
+    ],
+    opening:52000
+  };
+}
+let S, ui={role:'resident',tab:'home',month:'2026-11'};
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S) S=seed();
+try{const u=JSON.parse(localStorage.getItem(KEY+'-ui'));if(u)ui=Object.assign(ui,u)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem(KEY+'-ui',JSON.stringify(ui))}catch(e){}}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const mLabel=m=>{const[y,mm]=m.split('-');return MONTHS[+mm-1]+' '+y};
+const dLabel=d=>{const[y,m,dd]=d.split('-');return +dd+' '+MONTHS[+m-1]};
+const today='2026-11-16';
+const nextId=a=>Math.max(0,...a.map(x=>x.id))+1;
+const villa=id=>S.villas.find(v=>v.id===id)||{owner:'—'};
+const isAdmin=()=>ui.role==='admin';
+const icon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>`;
+const STATUS={paid:['Paid','c-ok'],pending:['Verifying','c-warn'],due:['Due','c-bad'],open:['Open','c-bad'],'in-progress':['In progress','c-warn'],resolved:['Resolved','c-ok']};
+const chip=s=>`<span class="chip ${STATUS[s][1]}">${STATUS[s][0]}</span>`;
+function months(){return [...new Set(S.dues.map(d=>d.month))].sort()}
+function monthStats(m){const r=S.dues.filter(d=>d.month===m);const paid=r.filter(d=>d.status==='paid');
+  return {total:r.reduce((a,d)=>a+d.amount,0),collected:paid.reduce((a,d)=>a+d.amount,0),count:r.length,paidCount:paid.length,pending:r.filter(d=>d.status==='pending').length,due:r.filter(d=>d.status==='due').length}}
+function fund(){const inc=S.dues.filter(d=>d.status==='paid').reduce((a,d)=>a+d.amount,0);const exp=S.expenses.reduce((a,e)=>a+e.amount,0);return {inc,exp,bal:S.opening+inc-exp}}
+
+function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;el.setAttribute('role','status');document.body.appendChild(el);setTimeout(()=>el.remove(),2200)}
+function modal(html){$('#layer').innerHTML=`<div class="overlay" data-act="close-bg"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;const f=$('#layer input,#layer textarea,#layer button');f&&f.focus()}
+function closeModal(){$('#layer').innerHTML=''}
+async function copy(text,btn){try{await navigator.clipboard.writeText(text);toast('Copied')}catch(e){const r=document.createRange();const n=btn.closest('.upi,.modal').querySelector('code,.note');if(n){r.selectNodeContents(n);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected — press Ctrl/Cmd+C')}}}
+
+/* ---------- views ---------- */
+function vHome(){
+  const st=monthStats(ui.month), f=fund(), pct=st.total?Math.round(st.collected/st.total*100):0;
+  const notices=[...S.notices].sort((a,b)=>(b.pinned-a.pinned)||b.date.localeCompare(a.date)).slice(0,3);
+  if(isAdmin()){
+    const openT=S.tickets.filter(t=>t.status!=='resolved').length;
+    return `<div class="head"><div><h1>Committee desk</h1><p>${mLabel(ui.month)} · dues fall due on the ${S.settings.dueDay}th</p></div></div>
+    <div class="grid">
+      <div class="card hero"><span class="label">Collected this month</span><div class="big">${inr(st.collected)}</div>
+        <div class="bar"><span style="width:${pct}%"></span></div><span class="sub">${st.paidCount} of ${st.count} villas paid · ${pct}% of ${inr(st.total)}</span></div>
+      <div class="card"><span class="label">Waiting for you</span>
+        <div class="row"><span class="big">${st.pending}</span><span class="sub">UPI payments to verify</span></div>
+        <div class="row"><span class="big">${openT}</span><span class="sub">open complaints</span></div></div>
+      <div class="card"><span class="label">Society fund balance</span><div class="big">${inr(f.bal)}</div><span class="sub">Opening ${inr(S.opening)} + dues ${inr(f.inc)} − expenses ${inr(f.exp)}</span></div>
+    </div>
+    <div class="card"><h2>Quick actions</h2><div class="row">
+      <button class="btn primary" data-act="go" data-v="dues">Verify payments</button>
+      <button class="btn" data-act="go" data-v="notices">Post a notice</button>
+      <button class="btn" data-act="remind-all">Reminder for ${st.due} unpaid villas</button>
+      <button class="btn" data-act="go" data-v="acc">Record an expense</button></div></div>
+    <div class="card"><div class="row"><h2>Latest notices</h2><button class="btn ghost small spacer" data-act="go" data-v="notices">All notices</button></div>${noticeList(notices)}</div>`;
+  }
+  const mine=S.dues.filter(d=>d.villa===ME&&d.status!=='paid');
+  const owe=mine.filter(d=>d.status==='due').reduce((a,d)=>a+d.amount,0);
+  const myT=S.tickets.filter(t=>t.villa===ME&&t.status!=='resolved');
+  const myB=S.bookings.filter(b=>b.villa===ME&&b.date>=today);
+  return `<div class="head"><div><h1>Namaste, ${esc(villa(ME).owner.split(' ')[0])}</h1><p>Villa ${ME} · ${esc(S.settings.name)}</p></div></div>
+  <div class="grid">
+    <div class="card hero"><span class="label">Your maintenance</span>
+      ${owe?`<div class="big">${inr(owe)}</div><span class="sub">${mine.filter(d=>d.status==='due').map(d=>mLabel(d.month)).join(', ')} · due by ${S.settings.dueDay}th</span><div><button class="btn primary" data-act="pay" data-v="${mine.find(d=>d.status==='due').id}">Pay with UPI</button></div>`
+        : mine.length?`<div class="big">Verifying</div><span class="sub">The treasurer will confirm your UPI payment soon.</span>`
+        :`<div class="big">All paid</div><span class="sub">Nothing due. Thank you!</span>`}</div>
+    <div class="card"><span class="label">Your requests</span>
+      ${myT.length?myT.map(t=>`<div class="row"><span style="min-width:0">${esc(t.title)}</span><span class="spacer">${chip(t.status)}</span></div>`).join(''):'<span class="sub">No open complaints.</span>'}
+      <div><button class="btn small" data-act="go" data-v="help">Raise a complaint</button></div></div>
+    <div class="card"><span class="label">Your bookings</span>
+      ${myB.length?myB.map(b=>`<div><b>${esc(b.amenity)}</b><div class="sub">${dLabel(b.date)} · ${esc(b.slot)}</div></div>`).join(''):'<span class="sub">No upcoming bookings.</span>'}
+      <div><button class="btn small" data-act="go" data-v="book">Book an amenity</button></div></div>
+  </div>
+  <div class="card"><div class="row"><h2>Notices</h2><button class="btn ghost small spacer" data-act="go" data-v="notices">All notices</button></div>${noticeList(notices)}</div>
+  <div class="card"><div class="row"><h2>Where the money goes</h2><span class="sub spacer">Every resident sees the same accounts</span></div>
+    <div class="row"><div><div class="label">Fund balance</div><div class="big">${inr(f.bal)}</div></div>
+    <div><div class="label">${mLabel(ui.month)} collection</div><div class="big">${pct}%</div></div></div>
+    <div><button class="btn small" data-act="go" data-v="acc">See accounts</button></div></div>`;
+}
+
+function noticeList(arr){
+  if(!arr.length) return '<div class="empty">No notices yet.</div>';
+  return `<div class="list">${arr.map(n=>`<div class="item notice"><div class="body">
+    <div class="row" style="gap:8px">${n.pinned?'<span class="pin">Pinned</span>':''}<span class="tag">${esc(n.tag)}</span><span class="meta">${dLabel(n.date)}</span></div>
+    <h3>${esc(n.title)}</h3><p>${esc(n.body)}</p></div>
+    ${isAdmin()?`<div class="row" style="flex-wrap:nowrap"><button class="btn small ghost" data-act="pin" data-v="${n.id}">${n.pinned?'Unpin':'Pin'}</button><button class="btn small ghost danger" data-act="del-notice" data-v="${n.id}">Delete</button></div>`:''}</div>`).join('')}</div>`;
+}
+
+function vDues(){
+  if(!isAdmin()){
+    const mine=S.dues.filter(d=>d.villa===ME).sort((a,b)=>b.month.localeCompare(a.month));
+    return `<div class="head"><div><h1>Maintenance</h1><p>${inr(S.settings.rate)} per villa per month · pay to <b>${esc(S.settings.upi)}</b></p></div></div>
+    <div class="tablewrap"><table><thead><tr><th>Month</th><th class="r">Amount</th><th>Status</th><th>Paid on</th><th></th></tr></thead><tbody>
+    ${mine.map(d=>`<tr><td>${mLabel(d.month)}</td><td class="r num">${inr(d.amount)}</td><td>${chip(d.status)}</td><td class="num">${d.paidOn?dLabel(d.paidOn)+' · '+d.mode:d.utr?'UTR '+esc(d.utr):'—'}</td>
+    <td class="r">${d.status==='due'?`<button class="btn small primary" data-act="pay" data-v="${d.id}">Pay</button>`:d.status==='paid'?`<button class="btn small ghost" data-act="receipt" data-v="${d.id}">Receipt</button>`:''}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="sub">Paid in cash? Hand it to the treasurer and they will mark it here.</p>`;
+  }
+  const st=monthStats(ui.month);
+  const rows=S.dues.filter(d=>d.month===ui.month).sort((a,b)=>({pending:0,due:1,paid:2}[a.status]-{pending:0,due:1,paid:2}[b.status])||a.villa.localeCompare(b.villa));
+  const ms=months();
+  return `<div class="head"><div><h1>Maintenance collection</h1><p>${st.paidCount}/${st.count} paid · ${st.pending} to verify · ${st.due} unpaid</p></div>
+    <div class="field" style="width:150px"><label for="monthSel">Month</label><select id="monthSel" data-act="month">${ms.map(m=>`<option value="${m}" ${m===ui.month?'selected':''}>${mLabel(m)}</option>`).join('')}</select></div>
+    <button class="btn" data-act="remind-all">Copy reminder</button>
+    <button class="btn primary" data-act="gen">Raise ${mLabel(nextMonth(ms[ms.length-1]))} bills</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Villa</th><th>Owner</th><th class="r">Amount</th><th>Status</th><th>Details</th><th class="r">Action</th></tr></thead><tbody>
+  ${rows.map(d=>`<tr><td><b>${d.villa}</b></td><td>${esc(villa(d.villa).owner)}</td><td class="r num">${inr(d.amount)}</td><td>${chip(d.status)}</td>
+    <td class="num sub">${d.status==='paid'?dLabel(d.paidOn)+' · '+d.mode:d.utr?'UTR '+esc(d.utr):'—'}</td>
+    <td class="r">${d.status==='pending'?`<button class="btn small primary" data-act="approve" data-v="${d.id}">Confirm</button> <button class="btn small ghost" data-act="reject" data-v="${d.id}">Reject</button>`
+      :d.status==='due'?`<button class="btn small" data-act="cash" data-v="${d.id}">Mark cash</button>`
+      :`<button class="btn small ghost" data-act="undo" data-v="${d.id}">Undo</button>`}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function nextMonth(m){let[y,mm]=m.split('-').map(Number);mm++;if(mm>12){mm=1;y++}return y+'-'+String(mm).padStart(2,'0')}
+
+function vNotices(){
+  const arr=[...S.notices].sort((a,b)=>(b.pinned-a.pinned)||b.date.localeCompare(a.date));
+  return `<div class="head"><div><h1>Notices</h1><p>Announcements from the committee</p></div></div>
+  ${isAdmin()?`<div class="card"><h2>Post a notice</h2><form class="stack" data-form="notice">
+    <div class="field"><label for="nTitle">Title</label><input id="nTitle" name="title" required placeholder="e.g. Power shutdown on Sunday"></div>
+    <div class="field"><label for="nBody">Message</label><textarea id="nBody" name="body" required></textarea></div>
+    <div class="two"><div class="field"><label for="nTag">Category</label><select id="nTag" name="tag"><option>General</option><option>Maintenance</option><option>Event</option><option>Security</option><option>Committee</option></select></div>
+    <label class="check" style="align-self:end;padding-bottom:9px"><input id="nPin" type="checkbox" name="pinned"> Pin to top</label></div>
+    <div><button class="btn primary">Publish notice</button></div></form></div>`:''}
+  <div class="card">${noticeList(arr)}</div>`;
+}
+
+function vHelp(){
+  const arr=S.tickets.filter(t=>isAdmin()||t.villa===ME).sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="head"><div><h1>Helpdesk</h1><p>${isAdmin()?'All complaints from residents':'Report a problem and track it'}</p></div></div>
+  ${!isAdmin()?`<div class="card"><h2>Raise a complaint</h2><form class="stack" data-form="ticket">
+    <div class="two"><div class="field"><label for="tCat">Type</label><select id="tCat" name="cat"><option>Plumbing</option><option>Electrical</option><option>Housekeeping</option><option>Security</option><option>Garden</option><option>Other</option></select></div>
+    <div class="field"><label for="tTitle">What's wrong?</label><input id="tTitle" name="title" required placeholder="e.g. Street light off near V-07"></div></div>
+    <div><button class="btn primary">Submit complaint</button></div></form></div>`:''}
+  ${arr.length?`<div class="tablewrap"><table><thead><tr><th>#</th>${isAdmin()?'<th>Villa</th>':''}<th>Issue</th><th>Raised</th><th>Status</th><th>Update</th></tr></thead><tbody>
+  ${arr.map(t=>`<tr><td class="num sub">${t.id}</td>${isAdmin()?`<td><b>${t.villa}</b></td>`:''}<td><b>${esc(t.title)}</b><div class="sub">${esc(t.cat)}</div></td><td class="num">${dLabel(t.date)}</td>
+   <td>${isAdmin()?`<select aria-label="Status for #${t.id}" data-act="tstatus" data-v="${t.id}">${['open','in-progress','resolved'].map(s=>`<option value="${s}" ${s===t.status?'selected':''}>${STATUS[s][0]}</option>`).join('')}</select>`:chip(t.status)}</td>
+   <td class="sub">${isAdmin()?`<input aria-label="Note for #${t.id}" data-act="tnote" data-v="${t.id}" value="${esc(t.note)}" placeholder="Add note" style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:100%">`:esc(t.note)||'—'}</td></tr>`).join('')}
+  </tbody></table></div>`:'<div class="empty">No complaints. Everything is working.</div>'}`;
+}
+
+const AMENITIES=['Clubhouse hall','Guest room','Badminton court','Pool deck'];
+const SLOTS=['Morning (6–10 AM)','Afternoon (12–4 PM)','Evening (5–10 PM)','Full day'];
+function vBook(){
+  const arr=S.bookings.filter(b=>b.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
+  return `<div class="head"><div><h1>Bookings</h1><p>Common areas are free for residents. One slot per villa per day.</p></div></div>
+  ${!isAdmin()?`<div class="card"><h2>Book an amenity</h2><form class="stack" data-form="booking">
+   <div class="two"><div class="field"><label for="bAm">Amenity</label><select id="bAm" name="amenity">${AMENITIES.map(a=>`<option>${a}</option>`).join('')}</select></div>
+   <div class="field"><label for="bDate">Date</label><input id="bDate" type="date" name="date" min="${today}" value="2026-11-23" required></div>
+   <div class="field"><label for="bSlot">Slot</label><select id="bSlot" name="slot">${SLOTS.map(a=>`<option>${a}</option>`).join('')}</select></div>
+   <div class="field"><label for="bPur">Purpose (optional)</label><input id="bPur" name="purpose" placeholder="e.g. Kitty party"></div></div>
+   <div><button class="btn primary">Book</button></div></form></div>`:''}
+  ${arr.length?`<div class="tablewrap"><table><thead><tr><th>Date</th><th>Amenity</th><th>Slot</th><th>Villa</th><th>Purpose</th><th></th></tr></thead><tbody>
+  ${arr.map(b=>`<tr><td class="num"><b>${dLabel(b.date)}</b></td><td>${esc(b.amenity)}</td><td>${esc(b.slot)}</td><td>${b.villa}${b.villa===ME&&!isAdmin()?' <span class="chip c-info">You</span>':''}</td><td class="sub">${esc(b.purpose)||'—'}</td>
+   <td class="r">${isAdmin()||b.villa===ME?`<button class="btn small ghost danger" data-act="cancel-book" data-v="${b.id}">Cancel</button>`:''}</td></tr>`).join('')}
+  </tbody></table></div>`:'<div class="empty">No upcoming bookings.</div>'}`;
+}
+
+function vAcc(){
+  const f=fund();
+  const ms=months().slice().reverse();
+  const byMonth=ms.map(m=>{const inc=monthStats(m).collected;const exp=S.expenses.filter(e=>e.date.startsWith(m)).reduce((a,e)=>a+e.amount,0);return{m,inc,exp}});
+  const max=Math.max(1,...byMonth.flatMap(x=>[x.inc,x.exp]));
+  const exps=[...S.expenses].sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="head"><div><h1>Accounts</h1><p>Open books. Every resident sees what comes in and what goes out.</p></div></div>
+  <div class="grid">
+    <div class="card hero"><span class="label">Fund balance</span><div class="big">${inr(f.bal)}</div><span class="sub">Opening balance ${inr(S.opening)}</span></div>
+    <div class="card"><span class="label">Dues received</span><div class="big">${inr(f.inc)}</div><span class="sub">Since ${mLabel(months()[0])}</span></div>
+    <div class="card"><span class="label">Spent</span><div class="big">${inr(f.exp)}</div><span class="sub">${S.expenses.length} entries</span></div>
+  </div>
+  <div class="card"><h2>Month by month</h2>
+   <div class="list">${byMonth.map(x=>`<div class="item" style="align-items:center"><b style="width:72px;flex:none">${mLabel(x.m)}</b>
+    <div class="body" style="display:flex;flex-direction:column;gap:5px">
+     <div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><span style="width:${x.inc/max*100}%"></span></div><span class="num sub" style="width:84px;text-align:right">${inr(x.inc)}</span></div>
+     <div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><span style="width:${x.exp/max*100}%;background:var(--gold)"></span></div><span class="num sub" style="width:84px;text-align:right">${inr(x.exp)}</span></div>
+    </div></div>`).join('')}</div>
+   <div class="row sub"><span class="row" style="gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--green)"></span>Collected</span><span class="row" style="gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--gold)"></span>Spent</span></div></div>
+  ${isAdmin()?`<div class="card"><h2>Record an expense</h2><form class="stack" data-form="expense"><div class="two">
+    <div class="field"><label for="eHead">Head</label><select id="eHead" name="head"><option>Security</option><option>Housekeeping</option><option>Electricity</option><option>Water</option><option>Repairs</option><option>Gardening</option><option>Events</option><option>Other</option></select></div>
+    <div class="field"><label for="eAmt">Amount (₹)</label><input id="eAmt" type="number" min="1" name="amount" required></div>
+    <div class="field"><label for="eDate">Date</label><input id="eDate" type="date" name="date" value="${today}" required></div>
+    <div class="field"><label for="eNote">Note</label><input id="eNote" name="note" placeholder="Vendor / bill no."></div></div>
+    <div><button class="btn primary">Add expense</button></div></form></div>
+   <div class="card"><h2>Society settings</h2><form class="stack" data-form="settings"><div class="two">
+    <div class="field"><label for="sName">Society name</label><input id="sName" name="name" value="${esc(S.settings.name)}"></div>
+    <div class="field"><label for="sUpi">UPI ID for payments</label><input id="sUpi" name="upi" value="${esc(S.settings.upi)}"></div>
+    <div class="field"><label for="sRate">Maintenance per villa (₹)</label><input id="sRate" type="number" name="rate" value="${S.settings.rate}"></div>
+    <div class="field"><label for="sDue">Due day of month</label><input id="sDue" type="number" min="1" max="28" name="dueDay" value="${S.settings.dueDay}"></div></div>
+    <div><button class="btn primary">Save settings</button></div></form></div>`:''}
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Head</th><th>Note</th><th class="r">Amount</th>${isAdmin()?'<th></th>':''}</tr></thead><tbody>
+  ${exps.map(e=>`<tr><td class="num">${dLabel(e.date)}</td><td>${esc(e.head)}</td><td class="sub">${esc(e.note)}</td><td class="r num">${inr(e.amount)}</td>${isAdmin()?`<td class="r"><button class="btn small ghost danger" data-act="del-exp" data-v="${e.id}">Delete</button></td>`:''}</tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function vDir(){
+  const mask=p=>isAdmin()?p:p.slice(0,2)+'••••'+p.slice(-2);
+  return `<div class="head"><div><h1>Directory</h1><p>${S.villas.length} villas${isAdmin()?'':' · phone numbers are partly hidden for privacy'}</p></div></div>
+  <div class="card"><h2>Emergency & services</h2><div class="villas">
+   ${[['Main gate security','9845000111'],['Facility manager','9845000222'],['Plumber (on call)','9845000333'],['Electrician (on call)','9845000444'],['Ambulance','108']].map(([n,p])=>`<div class="villa"><span class="tagline">${n}</span><b class="num" style="user-select:all">${p}</b></div>`).join('')}
+  </div></div>
+  <div class="villas">${S.villas.map(v=>`<div class="villa"><div class="row"><span class="no">${v.id}</span>${v.committee?`<span class="chip c-info spacer">${v.committee}</span>`:''}</div>
+   <b>${esc(v.owner)}</b><span class="tagline num">${v.type} · ${v.committee?v.phone:mask(v.phone)}</span></div>`).join('')}</div>`;
+}
+
+/* ---------- tiny QR-like placeholder (prototype only) ---------- */
+function drawQR(canvas,text){const n=25,c=canvas.getContext('2d');canvas.width=canvas.height=n;let h=0;for(const ch of text)h=(h*31+ch.charCodeAt(0))>>>0;
+  const css=getComputedStyle(document.documentElement);c.fillStyle='#fff';c.fillRect(0,0,n,n);c.fillStyle='#111';
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){h^=h<<13;h^=h>>>17;h^=h<<5;h>>>=0;if(h%2)c.fillRect(x,y,1,1)}
+  [[0,0],[n-7,0],[0,n-7]].forEach(([x,y])=>{c.fillStyle='#fff';c.fillRect(x,y,7,7);c.fillStyle='#111';c.fillRect(x,y,7,7);c.fillStyle='#fff';c.fillRect(x+1,y+1,5,5);c.fillStyle='#111';c.fillRect(x+2,y+2,3,3)})}
+
+function payModal(id){const d=S.dues.find(x=>x.id==id);const link=`upi://pay?pa=${S.settings.upi}&pn=${encodeURIComponent(S.settings.name)}&am=${d.amount}&tn=${encodeURIComponent('Maintenance '+mLabel(d.month)+' '+d.villa)}`;
+  modal(`<h2>Pay ${inr(d.amount)}</h2><p class="sub">Maintenance for ${mLabel(d.month)} · Villa ${d.villa}. Pay from any UPI app (GPay, PhonePe, Paytm). No fees.</p>
+  <div class="qr"><canvas id="qr" width="25" height="25" style="width:130px;height:130px" aria-label="UPI QR code"></canvas></div>
+  <div class="upi"><code>${esc(S.settings.upi)}</code><button class="btn small" data-act="copy" data-v="${esc(S.settings.upi)}">Copy</button></div>
+  <a class="btn" href="${esc(link)}" style="text-align:center;text-decoration:none">Open UPI app (on phone)</a>
+  <form class="stack" data-form="utr" data-v="${d.id}"><div class="field"><label for="utr">After paying, enter the 12-digit UTR / reference number</label><input id="utr" name="utr" inputmode="numeric" required minlength="6" placeholder="e.g. 432198765432"></div>
+  <div class="row"><button class="btn primary">I have paid</button><button type="button" class="btn ghost" data-act="close">Cancel</button></div></form>
+  <p class="sub" style="font-size:.78rem">Prototype: the QR is a placeholder. The real app will draw a scannable UPI QR.</p>`);
+  drawQR($('#qr'),link);}
+
+function reminderText(){const m=ui.month;const unpaid=S.dues.filter(d=>d.month===m&&d.status==='due').map(d=>d.villa);
+  return `🏡 ${S.settings.name}\nGentle reminder: maintenance of ${inr(S.settings.rate)} for ${mLabel(m)} is pending for villas ${unpaid.join(', ')||'—'}.\nPay via UPI to ${S.settings.upi} and enter the UTR in the society app.\nThank you! – Committee`}
+
+/* ---------- render ---------- */
+function render(){
+  document.title='Society Hub';
+  $('#socName').textContent=S.settings.name;
+  $('#whoami').textContent=isAdmin()?'Signed in as Treasurer (demo)':'Signed in as '+villa(ME).owner+' · '+ME+' (demo)';
+  $('#roleRes').setAttribute('aria-pressed',!isAdmin());$('#roleAdm').setAttribute('aria-pressed',isAdmin());
+  const pend=monthStats(ui.month).pending, openT=S.tickets.filter(t=>t.status==='open').length;
+  $('#nav').innerHTML=TABS.map(([k,l])=>{let b='';if(isAdmin()&&k==='dues'&&pend)b=pend;if(isAdmin()&&k==='help'&&openT)b=openT;
+    return `<button data-act="go" data-v="${k}" ${ui.tab===k?'aria-current="page"':''}>${icon(k)}${l}${b?`<span class="badge">${b}</span>`:''}</button>`}).join('')+
+    `<div class="foot" style="margin-top:18px;padding:0 12px"><button class="btn ghost small" data-act="reset" style="padding-left:0">Reset demo data</button></div>`;
+  const V={home:vHome,dues:vDues,notices:vNotices,help:vHelp,book:vBook,acc:vAcc,dir:vDir};
+  $('#main').innerHTML=V[ui.tab]();
+  save();
+}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act,v=t.dataset.v;
+  if(a==='close-bg'){if(e.target===t)closeModal();return}
+  if(t.tagName==='SELECT'||t.tagName==='INPUT')return;
+  const due=()=>S.dues.find(x=>x.id==v);
+  switch(a){
+    case 'role':ui.role=v;break;
+    case 'go':ui.tab=v;window.scrollTo(0,0);break;
+    case 'pay':payModal(v);return;
+    case 'close':closeModal();return;
+    case 'copy':copy(v,t);return;
+    case 'approve':Object.assign(due(),{status:'paid',paidOn:today,mode:'UPI'});toast('Payment confirmed · receipt sent');break;
+    case 'reject':Object.assign(due(),{status:'due',utr:''});toast('Marked unpaid · resident notified');break;
+    case 'cash':Object.assign(due(),{status:'paid',paidOn:today,mode:'Cash'});toast('Cash payment recorded');break;
+    case 'undo':Object.assign(due(),{status:'due',paidOn:'',mode:'',utr:''});break;
+    case 'receipt':{const d=due();modal(`<h2>Receipt</h2><div class="note">${esc(S.settings.name)}\nReceipt no. GM-${String(d.id).padStart(5,'0')}\n\nVilla: ${d.villa} (${esc(villa(d.villa).owner)})\nFor: Maintenance ${mLabel(d.month)}\nAmount: ${inr(d.amount)}\nPaid on: ${dLabel(d.paidOn)} via ${d.mode}</div><div class="row"><button class="btn primary" data-act="copy" data-v="${esc(`Receipt GM-${d.id} · ${d.villa} · ${mLabel(d.month)} · ${inr(d.amount)} · ${d.mode}`)}">Copy</button><button class="btn ghost" data-act="close">Close</button></div>`);return}
+    case 'remind-all':{const txt=reminderText();modal(`<h2>Reminder for WhatsApp</h2><p class="sub">Copy and paste into the society WhatsApp group.</p><div class="note">${esc(txt)}</div><div class="row"><button class="btn primary" data-act="copy" data-v="${esc(txt)}">Copy message</button><button class="btn ghost" data-act="close">Close</button></div>`);return}
+    case 'gen':{const ms=months();const m=nextMonth(ms[ms.length-1]);let n=nextId(S.dues);S.villas.forEach(vl=>S.dues.push({id:n++,villa:vl.id,month:m,amount:S.settings.rate,status:'due',utr:'',paidOn:'',mode:''}));ui.month=m;toast(`${S.villas.length} bills raised for ${mLabel(m)}`);break}
+    case 'pin':{const n=S.notices.find(x=>x.id==v);n.pinned=!n.pinned;break}
+    case 'del-notice':S.notices=S.notices.filter(x=>x.id!=v);toast('Notice deleted');break;
+    case 'cancel-book':S.bookings=S.bookings.filter(x=>x.id!=v);toast('Booking cancelled');break;
+    case 'del-exp':S.expenses=S.expenses.filter(x=>x.id!=v);toast('Expense deleted');break;
+    case 'reset':if(t.dataset.sure){S=seed();ui.month='2026-11';toast('Demo data reset')}else{t.dataset.sure=1;t.textContent='Tap again to reset';return}break;
+    default:return;
+  }
+  render();
+});
+document.addEventListener('change',e=>{const t=e.target;const a=t.dataset.act,v=t.dataset.v;
+  if(a==='month'){ui.month=t.value;render()}
+  if(a==='tstatus'){S.tickets.find(x=>x.id==v).status=t.value;toast('Status updated · resident notified');render()}
+  if(a==='tnote'){S.tickets.find(x=>x.id==v).note=t.value;save();toast('Note saved')}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.addEventListener('submit',e=>{const f=e.target;if(!f.dataset.form)return;e.preventDefault();const d=Object.fromEntries(new FormData(f));
+  switch(f.dataset.form){
+    case 'utr':Object.assign(S.dues.find(x=>x.id==f.dataset.v),{status:'pending',utr:d.utr.trim()});closeModal();toast('Sent to treasurer for verification');break;
+    case 'notice':S.notices.push({id:nextId(S.notices),title:d.title,body:d.body,tag:d.tag,date:today,pinned:!!d.pinned});toast('Notice published to all residents');break;
+    case 'ticket':{const id=nextId(S.tickets);S.tickets.push({id,villa:ME,cat:d.cat,title:d.title,status:'open',date:today,note:''});toast('Complaint #'+id+' raised');break}
+    case 'booking':{if(S.bookings.some(b=>b.amenity===d.amenity&&b.date===d.date&&(b.slot===d.slot||b.slot==='Full day'||d.slot==='Full day'))){toast('That slot is already booked. Pick another.');return}
+      S.bookings.push({id:nextId(S.bookings),villa:ME,...d});toast('Booked '+d.amenity+' for '+dLabel(d.date));break}
+    case 'expense':S.expenses.push({id:nextId(S.expenses),head:d.head,amount:+d.amount,date:d.date,note:d.note});toast('Expense added · visible to all');break;
+    case 'settings':Object.assign(S.settings,{name:d.name,upi:d.upi,rate:+d.rate,dueDay:+d.dueDay});toast('Settings saved');break;
+  }
+  render();
+});
+render();
+</script>

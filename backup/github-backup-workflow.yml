@@ -1,0 +1,59 @@
+# Society Hub — daily full database backup into a PRIVATE GitHub repo (free).
+#
+# Put this file in a separate PRIVATE repo (e.g. society-hub-backups) at:
+#   .github/workflows/backup.yml
+# Never put it in the public website repo.
+#
+# Repo → Settings → Secrets and variables → Actions → New repository secret:
+#   SUPABASE_DB_URL     Supabase → Connect → "Session pooler" connection string (with your DB password)
+#   BACKUP_PASSPHRASE   any long password. Backups are encrypted with it. Keep it safe, you need it to restore.
+#
+# Restore later:
+#   gpg -d backups/2026-11-16.sql.gpg > restore.sql      (asks for BACKUP_PASSPHRASE)
+#   psql "<db url>" -f restore.sql
+#
+# This daily job also keeps the free Supabase project awake (free projects pause after 7 quiet days).
+
+name: Daily database backup
+on:
+  schedule:
+    - cron: '30 20 * * *'      # 2:00 AM India time
+  workflow_dispatch: {}          # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dump database
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir -p backups
+          docker run --rm -e DB_URL postgres:17 sh -c '
+            pg_dump "$DB_URL" --schema=public --no-owner --no-privileges &&
+            echo "-- auth users" &&
+            pg_dump "$DB_URL" --data-only --table=auth.users --no-owner --no-privileges
+          ' > dump.sql
+          test -s dump.sql
+
+      - name: Encrypt and keep last 60 days
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$PASS" -o "backups/$(date -u +%F).sql.gpg" dump.sql
+          rm dump.sql
+          ls -1 backups/*.sql.gpg | sort | head -n -60 | xargs -r git rm -q --
+
+      - name: Save to repo
+        run: |
+          git config user.name "backup-bot"
+          git config user.email "backup-bot@users.noreply.github.com"
+          git add backups
+          git commit -q -m "Backup $(date -u +%F)" || echo "No change"
+          git push

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Society Hub</title>
+<meta name="description" content="Free app for villa and apartment societies: maintenance, notices, complaints, bookings and open accounts.">
+<meta name="theme-color" content="#1E5B43">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></div>
+    <div class="brand-text"><b id="socName">Society Hub</b><small id="whoami"></small></div>
+  </div>
+  <div id="topActions" class="row"></div>
+</header>
+<div class="shell" id="shell">
+  <nav class="side" id="nav" aria-label="Sections"></nav>
+  <main id="main"><div class="loading">Loading…</div></main>
+</div>
+<div id="layer"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
