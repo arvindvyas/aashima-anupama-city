@@ -92,10 +92,10 @@ function renderLogin(msg = '') {
     <div><h1>Sign in</h1><p class="sub">Your society's maintenance, notices, complaints and bookings in one place. Free.</p></div>
     ${email ? `<form class="stack" data-form="email">
         <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="email" placeholder="you@gmail.com" value="${esc(ui.email)}"></div>
-        <button class="btn primary">Send login code</button></form>`
+        <button class="btn primary">Email me a sign-in link</button></form>`
       : `<form class="stack" data-form="otp">
-        <p>We sent a code to <b>${esc(ui.email)}</b>. Enter it below, or tap the link in the email.</p>
-        <div class="field"><label for="otp">Login code</label><input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="10" placeholder="6-digit code"></div>
+        <p>We sent an email to <b>${esc(ui.email)}</b>. Open it on this device and tap <b>Sign in</b>. Check Spam if you don't see it in a minute.</p>
+        <div class="field"><label for="otp">Or, if the email shows a code, enter it here</label><input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="10" placeholder="6-digit code"></div>
         <div class="row"><button class="btn primary">Sign in</button><button type="button" class="btn ghost" data-act="auth-back">Use another email</button></div></form>`}
     ${GOOGLE_LOGIN ? `<div class="row" style="justify-content:center"><span class="sub">or</span></div><button class="btn" data-act="google">Continue with Google</button>` : ''}
     ${msg ? `<p class="err">${esc(msg)}</p>` : ''}
