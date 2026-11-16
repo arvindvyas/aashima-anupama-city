@@ -130,7 +130,7 @@ async function renderLanding() {
       : '<p class="sub">News from the committee will appear here.</p>'}</section>
     <section class="card resident-cta"><div><h2>Live here?</h2><p class="sub">Residents sign in to pay maintenance, read all notices and raise complaints.</p></div>
       <button class="btn primary" data-act="show-login">Resident login</button></section>
-    <p class="foot" style="justify-content:center">Managed by the residents' committee · Free, made with Society Hub</p>
+    <p class="foot" style="justify-content:center">Managed by the residents' committee · Free, made with Society Hub · <a href="privacy.html" style="color:inherit">Privacy</a></p>
   </div>`;
 }
 
@@ -140,14 +140,14 @@ function renderLogin(msg = '') {
   solo(`<div class="auth"><button class="btn ghost small" data-act="show-home" style="align-self:flex-start;padding-left:0">← Back to home</button><div class="card">
     <div><h1>Resident login</h1><p class="sub">Your society's maintenance, notices, complaints and bookings in one place. Free.</p></div>
     ${email ? `<p class="note" style="white-space:normal">Use the email address your society committee registered for you. New here? Send your villa number and email to your committee first.</p>` : ''}
+    ${GOOGLE_LOGIN && email ? `<button class="btn primary" data-act="google" style="padding:11px">Continue with Google</button><div class="row" style="justify-content:center"><span class="sub">or use email</span></div>` : ''}
     ${email ? `<form class="stack" data-form="email">
         <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="email" placeholder="you@gmail.com" value="${esc(ui.email)}"></div>
-        <button class="btn primary">Email me a sign-in link</button></form>`
+        <button class="btn${GOOGLE_LOGIN ? '' : ' primary'}">Email me a sign-in link</button></form>`
       : `<form class="stack" data-form="otp">
         <p>We sent an email to <b>${esc(ui.email)}</b>. Open it on this device and tap <b>Sign in</b>. Check Spam if you don't see it in a minute.</p>
         <div class="field"><label for="otp">Or, if the email shows a code, enter it here</label><input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="10" placeholder="6-digit code"></div>
         <div class="row"><button class="btn primary">Sign in</button><button type="button" class="btn ghost" data-act="auth-back">Use another email</button></div></form>`}
-    ${GOOGLE_LOGIN ? `<div class="row" style="justify-content:center"><span class="sub">or</span></div><button class="btn" data-act="google">Continue with Google</button>` : ''}
     ${msg ? `<p class="err">${esc(msg)}</p>` : ''}
   </div></div>`);
 }
